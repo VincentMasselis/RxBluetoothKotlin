@@ -4,7 +4,6 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.support.v4.util.ArrayMap
-import com.equisense.kotlin_field_extension.FieldProperty
 import com.equisense.rxkotlinbleandroid.internal.*
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -95,15 +94,16 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
                 }
 
 
-private val BluetoothGatt.notificationsObs: ArrayMap<UUID, Flowable<Optional<ByteArray>>?> by FieldProperty { ArrayMap() }
+private val BluetoothGatt.notificationsObs: ArrayMap<UUID, Flowable<Pair<Boolean, ByteArray?>>?> by FieldProperty { ArrayMap() }
 
 /**
  * Because listening to notification require an descriptor write, the observable returned can fire
  * errors from [BluetoothGattDescriptor.write] method like [DescriptorWriteDeviceDisconnected],
- * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed]
+ * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed].
+ * Fire Pair<true, null> when notification is ready, fire Pair<true, value> when a data is notified.
  */
-fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic, indication: Boolean = false): Flowable<Optional<ByteArray>> =
-        notificationsObs[characteristic.uuid]?.startWith(Optional(null)) ?:
+fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic, indication: Boolean = false): Flowable<Pair<Boolean, ByteArray?>> =
+        notificationsObs[characteristic.uuid]?.startWith(true to null) ?:
                 Completable
                         .defer {
                             logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to true")
@@ -122,8 +122,8 @@ fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic, i
                         }
                         .andThen(characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER)
                                 .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
-                                .map { Optional(it.value) }
-                                .startWith(Optional(null)))
+                                .map { true to it.value }
+                                .startWith(true to null))
                         .takeUntil(assertConnected { device, reason -> CharacteristicChangedDeviceDisconnected(device, reason, characteristic.service, characteristic) }.andThen(Flowable.just(Unit)))
                         .doOnTerminate { notificationsObs[characteristic.uuid] = null }
                         .share()

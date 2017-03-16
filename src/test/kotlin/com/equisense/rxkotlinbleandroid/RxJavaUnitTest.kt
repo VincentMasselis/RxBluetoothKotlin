@@ -1,6 +1,5 @@
 package com.equisense.rxkotlinbleandroid
 
-import com.equisense.rxkotlinbleandroid.internal.takeUntilMaybe
 import io.reactivex.Completable
 import io.reactivex.Flowable
 import io.reactivex.Single
@@ -13,86 +12,6 @@ import kotlin.test.assertFailsWith
 class RxJavaUnitTest {
 
     private class ExceptedException : Throwable()
-
-    @Test
-    fun takeUntilMaybeWithCompleteBefore() {
-        println()
-        println("-------- takeUntilMaybeWithCompleteBefore")
-
-        Single
-                .timer(200, TimeUnit.MILLISECONDS)
-                .takeUntilMaybe(Completable.timer(100, TimeUnit.MILLISECONDS))
-                .doOnSubscribe { println("${System.currentTimeMillis()} Subscribed") }
-                .doOnSuccess {
-                    println("${System.currentTimeMillis()} Value $it received")
-                    throw IllegalStateException("Source observable should never emit")
-                }
-                .doOnError { println("${System.currentTimeMillis()} Error : $it source observable fails by the takeUntilMaybe observable") }
-                .doOnComplete { println("${System.currentTimeMillis()} Source observable completed by the takeUntilMaybe observable") }
-                .run { assertEquals(null, blockingGet()) }
-    }
-
-    @Test
-    fun takeUntilMaybeWithErrorBefore() {
-        println()
-        println("-------- takeUntilMaybeWithErrorBefore")
-
-        Single
-                .timer(200, TimeUnit.MILLISECONDS)
-                .takeUntilMaybe(
-                        Completable.timer(100, TimeUnit.MILLISECONDS)
-                                .andThen(Completable.error(ExceptedException()))
-                )
-                .doOnSubscribe { println("${System.currentTimeMillis()} Subscribed") }
-                .doOnSuccess {
-                    println("${System.currentTimeMillis()} Value $it received")
-                    throw IllegalStateException("Source observable should never emit")
-                }
-                .doOnError { println("${System.currentTimeMillis()} Error : $it source observable fails by the takeUntilMaybe observable") }
-                .doOnComplete { println("${System.currentTimeMillis()} Source observable completed by the takeUntilMaybe observable") }
-                .run {
-                    assertFailsWith<ExceptedException> {
-                        try {
-                            blockingGet()
-                        } catch (ex: RuntimeException) {
-                            throw ex.cause!!
-                        }
-                    }
-                }
-    }
-
-    @Test
-    fun takeUntilMaybeWithCompleteAfter() {
-        println()
-        println("-------- takeUntilMaybeWithCompleteAfter")
-
-        Single
-                .timer(100, TimeUnit.MILLISECONDS)
-                .takeUntilMaybe(Completable.timer(200, TimeUnit.MILLISECONDS))
-                .doOnSubscribe { println("${System.currentTimeMillis()} Subscribed") }
-                .doOnSuccess { println("${System.currentTimeMillis()} Value $it received") }
-                .doOnError { println("${System.currentTimeMillis()} Error : $it source observable fails by the takeUntilMaybe observable") }
-                .doOnComplete { println("${System.currentTimeMillis()} Source observable completed by the takeUntilMaybe observable") }
-                .run { assertEquals(0L, blockingGet()) }
-    }
-
-    @Test
-    fun takeUntilMaybeWithErrorAfter() {
-        println()
-        println("-------- takeUntilMaybeWithErrorAfter")
-
-        Single
-                .timer(100, TimeUnit.MILLISECONDS)
-                .takeUntilMaybe(
-                        Completable.timer(200, TimeUnit.MILLISECONDS)
-                                .andThen(Completable.error(ExceptedException()))
-                )
-                .doOnSubscribe { println("${System.currentTimeMillis()} Subscribed") }
-                .doOnSuccess { println("${System.currentTimeMillis()} Value $it received") }
-                .doOnError { println("${System.currentTimeMillis()} Error : $it source observable fails by the takeUntilMaybe observable") }
-                .doOnComplete { println("${System.currentTimeMillis()} Source observable completed by the takeUntilMaybe observable") }
-                .run { assertEquals(0L, blockingGet()) }
-    }
 
     @Test
     fun mergeWithErrorTest() {

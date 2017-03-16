@@ -8,9 +8,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.content.ContextCompat
-import com.equisense.kotlin_field_extension.FieldProperty
-import com.equisense.kotlin_field_extension.NullableFieldProperty
-import com.equisense.kotlin_field_extension.SynchronizedFieldProperty
+import com.equisense.rxkotlinbleandroid.internal.FieldProperty
+import com.equisense.rxkotlinbleandroid.internal.NullableFieldProperty
+import com.equisense.rxkotlinbleandroid.internal.SynchronizedFieldProperty
 import com.equisense.rxkotlinbleandroid.internal.EnqueueSingle
 import com.equisense.rxkotlinbleandroid.internal.toHexString
 import io.reactivex.Completable

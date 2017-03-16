@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid.scan
+package com.equisense.rxkotlinbleandroid
 
 import android.Manifest
 import android.annotation.TargetApi
@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
 import android.support.v4.content.ContextCompat
-import com.equisense.rxkotlinbleandroid.*
 import io.reactivex.BackpressureStrategy
 import io.reactivex.Completable
 import io.reactivex.Flowable
@@ -19,7 +18,7 @@ import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 
 
-fun BluetoothManager.scan(context: Context, scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null, flushEvery: Pair<Long, TimeUnit>? = null): Flowable<ScanResult> =
+fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null, flushEvery: Pair<Long, TimeUnit>? = null): Flowable<ScanResult> =
         Completable
                 .defer {
                     if (adapter == null)
