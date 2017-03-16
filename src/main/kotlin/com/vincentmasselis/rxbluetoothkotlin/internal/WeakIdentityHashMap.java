@@ -22,7 +22,7 @@
  * Boston, MA  02110-1301  USA
  */
 
-package com.equisense.rxkotlinbleandroid.internal;
+package com.vincentmasselis.rxbluetoothkotlin.internal;
 
 
 import java.lang.ref.ReferenceQueue;

@@ -1,10 +1,10 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.support.v4.util.ArrayMap
-import com.equisense.rxkotlinbleandroid.internal.*
+import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
 import java.util.*

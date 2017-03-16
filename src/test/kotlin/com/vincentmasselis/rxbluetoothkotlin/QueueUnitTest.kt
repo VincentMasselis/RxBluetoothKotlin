@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
 class QueueUnitTest {
 

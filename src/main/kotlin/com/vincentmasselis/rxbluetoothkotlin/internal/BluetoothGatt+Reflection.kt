@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid.internal
+package com.vincentmasselis.rxbluetoothkotlin.internal
 
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattService

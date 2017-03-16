@@ -1,8 +1,8 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattDescriptor
-import com.equisense.rxkotlinbleandroid.internal.*
+import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single

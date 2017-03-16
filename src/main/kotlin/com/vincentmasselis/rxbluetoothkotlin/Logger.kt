@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
 interface Logger {
     fun v(tag: String, message: String, throwable: Throwable? = null)

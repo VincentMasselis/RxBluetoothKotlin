@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid.internal
+package com.vincentmasselis.rxbluetoothkotlin.internal
 
 import io.reactivex.Completable
 import io.reactivex.Maybe

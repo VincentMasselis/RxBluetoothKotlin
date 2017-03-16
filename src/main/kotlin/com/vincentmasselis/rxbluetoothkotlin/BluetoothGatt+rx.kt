@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
 import android.Manifest
 import android.bluetooth.*
@@ -8,11 +8,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.content.ContextCompat
-import com.equisense.rxkotlinbleandroid.internal.FieldProperty
-import com.equisense.rxkotlinbleandroid.internal.NullableFieldProperty
-import com.equisense.rxkotlinbleandroid.internal.SynchronizedFieldProperty
-import com.equisense.rxkotlinbleandroid.internal.EnqueueSingle
-import com.equisense.rxkotlinbleandroid.internal.toHexString
+import com.vincentmasselis.rxbluetoothkotlin.internal.EnqueueSingle
+import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
+import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Observable
@@ -185,7 +183,7 @@ internal var BluetoothGatt.reliableWriteCompletedSubject: PublishSubject<Int> by
 
 
 private val BluetoothGatt._connectionState: BehaviorSubject<Pair<Int, Int>> by FieldProperty { BehaviorSubject.create() }
-val BluetoothGatt.rxConnectionState: Observable <Pair <Int, Int>> get() = _connectionState.hide()
+val BluetoothGatt.rxConnectionState: Observable<Pair <Int, Int>> get() = _connectionState.hide()
 
 /**
  * Returns a completable that emit errors when a disconnection with the device occurs with an error
@@ -200,7 +198,7 @@ internal fun BluetoothGatt.assertConnected(exception: (device: BluetoothDevice, 
                 rxConnectionState
                         .flatMapCompletable { (newState, status) ->
                             if (newState != BluetoothProfile.STATE_CONNECTED)
-                                if (status == BluetoothGatt.GATT_SUCCESS) Completable.complete()
+                                if (status == GATT_SUCCESS) Completable.complete()
                                 else Completable.error(exception(device, status))
                             else Completable.never()
                         }
@@ -223,7 +221,7 @@ fun BluetoothGatt.rxReadRssi(): Maybe<Int> =
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
                 .flatMap { (value, status) ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(RssiReadingFailed(status, device))
+                    if (status != GATT_SUCCESS) Maybe.error(RssiReadingFailed(status, device))
                     else Maybe.just(value)
                 }
 
@@ -240,7 +238,7 @@ fun BluetoothGatt.rxDiscoverServices(): Maybe<List<BluetoothGattService>> =
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
                 .flatMap { status ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(ServiceDiscoveringFailed(status, device))
+                    if (status != GATT_SUCCESS) Maybe.error(ServiceDiscoveringFailed(status, device))
                     else Maybe.just(services)
                 }
 
@@ -258,6 +256,6 @@ fun BluetoothGatt.rxRequestMtu(mtu: Int): Maybe<Int> =
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
                 .flatMap { (mtu, status) ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(MtuRequestingFailed(status, device))
+                    if (status != GATT_SUCCESS) Maybe.error(MtuRequestingFailed(status, device))
                     else Maybe.just(mtu)
                 }

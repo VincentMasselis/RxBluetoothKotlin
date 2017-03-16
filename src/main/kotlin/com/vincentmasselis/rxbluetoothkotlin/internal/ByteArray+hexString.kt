@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid.internal
+package com.vincentmasselis.rxbluetoothkotlin.internal
 
 //Copied from https://bitbucket.org/snippets/gelin/zLebo/extension-functions-to-format-bytes-as-hex
 

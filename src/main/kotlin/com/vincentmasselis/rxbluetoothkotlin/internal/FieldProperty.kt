@@ -1,4 +1,4 @@
-package com.equisense.rxkotlinbleandroid.internal
+package com.vincentmasselis.rxbluetoothkotlin.internal
 
 import kotlin.reflect.KProperty
 

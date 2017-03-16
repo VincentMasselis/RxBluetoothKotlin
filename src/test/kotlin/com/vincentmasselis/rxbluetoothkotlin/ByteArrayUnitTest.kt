@@ -1,6 +1,6 @@
-package com.equisense.rxkotlinbleandroid
+package com.vincentmasselis.rxbluetoothkotlin
 
-import com.equisense.rxkotlinbleandroid.internal.toHexString
+import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
 import org.junit.Test
 import kotlin.test.assertEquals
 
