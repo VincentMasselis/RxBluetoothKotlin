@@ -8,8 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.content.ContextCompat
-import com.vincentmasselis.rxbluetoothkotlin.internal.EnqueueSingle
-import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.Completable
 import io.reactivex.Maybe
@@ -45,6 +43,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                             gatt.logger?.v(TAG, "onConnectionStateChange with status $status and newState $newState")
+                            if (newState == BluetoothProfile.STATE_DISCONNECTED) gatt.close()
                             gatt._connectionState.onNext(newState to status)
                         }
 
@@ -130,20 +129,6 @@ fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> =
                                     }
                     )
                 }
-
-//TODO Transform by using a combining operator ?
-fun BluetoothGatt.rxConnect(): Observable<Pair<Int, Int>> =
-        Observable
-                .create <Pair<Int, Int>> { emitter ->
-                    rxListenConnection()
-                            .subscribe({ emitter.onNext(it) }, { emitter.onError(it) }, { emitter.onComplete() })
-                            .run { emitter.setDisposable(this) }
-
-                    if (connect().not()) {
-                        if (emitter.isDisposed.not()) emitter.onError(CannotInitializeConnection(device))
-                    }
-                }
-                .subscribeOn(AndroidSchedulers.mainThread())
 
 fun BluetoothGatt.rxDisconnect(): Completable =
         Completable
