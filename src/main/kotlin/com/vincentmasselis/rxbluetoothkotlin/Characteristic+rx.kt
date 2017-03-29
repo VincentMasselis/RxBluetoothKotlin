@@ -4,6 +4,9 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.support.v4.util.ArrayMap
+import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -142,7 +145,7 @@ fun BluetoothGatt.rxDisableChanges(characteristic: BluetoothGattCharacteristic):
 fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
         Maybe.defer {
             if (services.isEmpty())
-                Maybe.error<BluetoothGattCharacteristic>(FindCharacteristicButServiceNotDiscovered(device, uuid))
+                Maybe.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServiceNotDiscovered(device, uuid))
             else {
                 services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Maybe.just(it) } }
                 Maybe.empty()
@@ -152,7 +155,7 @@ fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacte
 fun BluetoothGatt.rxCharacteristic(uuid: UUID): Single<BluetoothGattCharacteristic> =
         Single.defer {
             if (services.isEmpty())
-                Single.error<BluetoothGattCharacteristic>(FindCharacteristicButServiceNotDiscovered(device, uuid))
+                Single.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServiceNotDiscovered(device, uuid))
             else {
                 services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Single.just(it) } }
                 Single.error<BluetoothGattCharacteristic>(CharacteristicNotFound(device, uuid))

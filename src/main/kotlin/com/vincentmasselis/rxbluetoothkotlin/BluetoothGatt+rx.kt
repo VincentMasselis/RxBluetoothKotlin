@@ -8,6 +8,9 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.content.ContextCompat
+import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.Completable
 import io.reactivex.Maybe

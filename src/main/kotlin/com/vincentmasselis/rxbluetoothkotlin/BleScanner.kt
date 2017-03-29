@@ -36,15 +36,15 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                     Completable.complete()
                 }
                 .andThen(
-                        Flowable.create<ScanResult>({ emitter ->
+                        Flowable.create<ScanResult>({ downStream ->
                             val callback = object : ScanCallback() {
                                 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
                                 override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
-                                    emitter.onNext(result)
+                                    if(downStream.isCancelled.not()) downStream.onNext(result)
                                 }
 
                                 override fun onScanFailed(errorCode: Int) {
-                                    emitter.onError(ScanFailedException(errorCode))
+                                    if(downStream.isCancelled.not()) downStream.onError(ScanFailedException(errorCode))
                                 }
                             }
                             val scanner = BluetoothLeScannerCompat.getScanner()
@@ -59,7 +59,7 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                                         .subscribe { scanner.flushPendingScanResults(callback) }
                             }
 
-                            emitter.setCancellable {
+                            downStream.setCancellable {
                                 flushEveryDisp?.dispose()
                                 scanner.stopScan(callback)
                             }

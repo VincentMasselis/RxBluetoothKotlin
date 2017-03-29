@@ -2,6 +2,12 @@ package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattDescriptor
+import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeDescriptorReading
+import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeDescriptorWrite
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.DescriptorReadDeviceDisconnected
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.DescriptorWriteDeviceDisconnected
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.DescriptorReadingFailed
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.DescriptorWriteFailed
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.Completable
 import io.reactivex.Maybe
