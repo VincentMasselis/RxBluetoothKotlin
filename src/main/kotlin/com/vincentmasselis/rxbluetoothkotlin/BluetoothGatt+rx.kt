@@ -25,12 +25,12 @@ internal val TAG = "RxKotlinBleAndroid"
 
 fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logger: Logger? = null): Single<BluetoothGatt> =
         Single
-                .create<BluetoothGatt> { emitter ->
+                .create<BluetoothGatt> { downStream ->
                     logger?.v(TAG, "connectGatt with context $context and autoConnect $autoConnect")
 
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")
-                        if (emitter.isDisposed.not()) emitter.onError(NeedLocationPermission())
+                        if (downStream.isDisposed.not()) downStream.onError(NeedLocationPermission())
                         return@create
                     }
 
@@ -38,7 +38,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                     if (btState == BluetoothAdapter.STATE_OFF) {
                         logger?.v(TAG, "Bluetooth is off")
-                        if (emitter.isDisposed.not()) emitter.onError(BluetoothIsTurnedOff())
+                        if (downStream.isDisposed.not()) downStream.onError(BluetoothIsTurnedOff())
                         return@create
                     }
 
@@ -100,7 +100,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                     if (gatt == null) {
                         logger?.v(TAG, "connectGatt method returned null")
-                        if (emitter.isDisposed.not()) emitter.onError(LocalDeviceDoesNotSupportBluetooth())
+                        if (downStream.isDisposed.not()) downStream.onError(LocalDeviceDoesNotSupportBluetooth())
                         return@create
                     }
 
@@ -108,41 +108,41 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                     gatt.logger = logger
                     gatt.bluetoothState.onNext(btState)
 
-                    if (emitter.isDisposed.not()) emitter.onSuccess(gatt)
+                    if (downStream.isDisposed.not()) downStream.onSuccess(gatt)
                 }
                 .subscribeOn(AndroidSchedulers.mainThread())
 
 fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> =
         Observable
-                .create { emitter ->
-                    emitter.setDisposable(
+                .create { downStream ->
+                    downStream.setDisposable(
                             rxConnectionState
                                     .observeOn(AndroidSchedulers.mainThread())
                                     .subscribe { (newState, status) ->
                                         if (newState == BluetoothProfile.STATE_CONNECTING)
-                                            emitter.onNext(newState to status)
+                                            downStream.onNext(newState to status)
                                         else if (newState == BluetoothProfile.STATE_CONNECTED) {
-                                            emitter.onNext(newState to status)
-                                            emitter.onComplete()
+                                            downStream.onNext(newState to status)
+                                            downStream.onComplete()
                                         } else if (newState == BluetoothProfile.STATE_DISCONNECTING || newState == BluetoothProfile.STATE_DISCONNECTED)
-                                            emitter.onNext(newState to status)
+                                            downStream.onNext(newState to status)
 
                                         //TODO Evaluate if it's a good idea to returns an error only for the condition of the new state
-                                        if (status != GATT_SUCCESS) emitter.onError(GattDeviceDisconnected(device, status))
+                                        if (status != GATT_SUCCESS) downStream.onError(GattDeviceDisconnected(device, status))
                                     }
                     )
                 }
 
 fun BluetoothGatt.rxDisconnect(): Completable =
         Completable
-                .create { emitter ->
+                .create { downStream ->
                     rxConnectionState
                             .observeOn(AndroidSchedulers.mainThread())
                             .subscribe { (newState) ->
                                 if (newState == BluetoothProfile.STATE_CONNECTED || newState == BluetoothProfile.STATE_CONNECTING) disconnect()
-                                else if (newState == BluetoothProfile.STATE_DISCONNECTED) emitter.onComplete()
+                                else if (newState == BluetoothProfile.STATE_DISCONNECTED) downStream.onComplete()
                             }
-                            .run { emitter.setDisposable(this) }
+                            .run { downStream.setDisposable(this) }
                 }
                 .subscribeOn(AndroidSchedulers.mainThread())
 
