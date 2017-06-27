@@ -25,7 +25,7 @@ internal fun <R> EnqueueSingle(semaphore: Semaphore, disconnectedCompl: Completa
                 var sourceDisp: Disposable? = null
 
                 disconnectDisp = disconnectedCompl
-                        .doOnEvent { sourceDisp?.dispose() }
+                        .doOnEvent { _: Throwable? -> sourceDisp?.dispose() }
                         .subscribe({
                             if (downstreamTerminated.not())
                                 downstream.onComplete()
@@ -42,10 +42,10 @@ internal fun <R> EnqueueSingle(semaphore: Semaphore, disconnectedCompl: Completa
                         // Nexus 4 between the last call to write and the moment when the system
                         // forward the disconnection.
                         .timeout(1, TimeUnit.MINUTES)
-                        .doOnEvent { _, _ -> disconnectDisp?.dispose() }
-                        .subscribe { value, throwable ->
+                        .doOnEvent { _: R?, _: Throwable? -> disconnectDisp?.dispose() }
+                        .subscribe { value: R?, throwable: Throwable? ->
                             if (downstreamTerminated.not())
-                                if (throwable == null) downstream.onSuccess(value)
+                                if (throwable == null) downstream.onSuccess(value!!)
                                 else downstream.onError(throwable)
                             semaphore.release()
                         }
