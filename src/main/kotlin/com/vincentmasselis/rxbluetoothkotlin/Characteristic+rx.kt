@@ -3,7 +3,6 @@ package com.vincentmasselis.rxbluetoothkotlin
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.support.v4.util.ArrayMap
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
@@ -96,51 +95,59 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
                     else Completable.complete()
                 }
 
-
-private val BluetoothGatt.notificationsObs: ArrayMap<UUID, Flowable<Pair<Boolean, ByteArray?>>?> by FieldProperty { ArrayMap() }
-
 /**
- * Because listening to notification require an descriptor write, the observable returned can fire
+ * Because enabling notification require an descriptor write, the [Completable] returned can fire
  * errors from [BluetoothGattDescriptor.write] method like [DescriptorWriteDeviceDisconnected],
  * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed].
- * Fire Pair<true, null> when notification is ready, fire Pair<true, value> when a data is notified.
  */
-fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic, indication: Boolean = false): Flowable<Pair<Boolean, ByteArray?>> =
-        notificationsObs[characteristic.uuid]?.startWith(true to null) ?:
-                Completable
-                        .defer {
-                            logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to true")
-                            if (setCharacteristicNotification(characteristic, true).not())
-                                Completable.error {
-                                    CannotInitializeCharacteristicNotification(
-                                            device,
-                                            characteristic.service,
-                                            characteristic,
-                                            internalService(),
-                                            clientIf(),
-                                            characteristic.service?.device())
-                                }
-                            else
-                                rxWrite(characteristic.getDescriptor(GattConst.CLIENT_CHARACTERISTIC_CONFIG), if (indication) BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                        }
-                        .andThen(characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER)
-                                .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
-                                .map { true to it.value }
-                                .startWith(true to null))
-                        .takeUntil(assertConnected { device, reason -> CharacteristicChangedDeviceDisconnected(device, reason, characteristic.service, characteristic) }.andThen(Flowable.just(Unit)))
-                        .doOnTerminate { notificationsObs[characteristic.uuid] = null }
-                        .share()
-                        .apply { notificationsObs[characteristic.uuid] = this }
+fun BluetoothGatt.rxEnableNotification(characteristic: BluetoothGattCharacteristic, indication: Boolean = false, checkIfAlreadyEnabled: Boolean = true): Completable =
+        rxChangeNotification(
+                characteristic,
+                if (indication) BluetoothGattDescriptor.ENABLE_INDICATION_VALUE else BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE,
+                checkIfAlreadyEnabled
+        )
 
-fun BluetoothGatt.rxDisableChanges(characteristic: BluetoothGattCharacteristic): Completable =
+/**
+ * Because disabling notification require an descriptor write, the [Completable] returned can fire
+ * errors from [BluetoothGattDescriptor.write] method like [DescriptorWriteDeviceDisconnected],
+ * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed].
+ */
+fun BluetoothGatt.rxDisableNotification(characteristic: BluetoothGattCharacteristic, checkIfAlreadyDisabled: Boolean = true): Completable =
+        rxChangeNotification(
+                characteristic,
+                BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE,
+                checkIfAlreadyDisabled
+        )
+
+private fun BluetoothGatt.rxChangeNotification(characteristic: BluetoothGattCharacteristic, byteArray: ByteArray, checkIfAlreadyChanged: Boolean): Completable =
         Completable
-                .fromCallable {
-                    logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to false")
-                    setCharacteristicNotification(characteristic, false)
-                    notificationsObs[characteristic.uuid] = null
-                    Unit
+                .defer {
+                    val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
+                    logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
+                    if (setCharacteristicNotification(characteristic, isEnable).not())
+                        Completable.error {
+                            CannotInitializeCharacteristicNotification(
+                                    device,
+                                    characteristic.service,
+                                    characteristic,
+                                    internalService(),
+                                    clientIf(),
+                                    characteristic.service?.device())
+                        }
+                    else {
+                        val notificationDescriptor = characteristic.getDescriptor(GattConst.CLIENT_CHARACTERISTIC_CONFIG)
+                        if (notificationDescriptor == null)
+                            Completable.error(DescriptorNotFound(device, characteristic.uuid, GattConst.CLIENT_CHARACTERISTIC_CONFIG))
+                        else
+                            rxWrite(notificationDescriptor, byteArray, checkIfAlreadyChanged)
+                    }
                 }
-                .andThen(rxWrite(characteristic.getDescriptor(GattConst.CLIENT_CHARACTERISTIC_CONFIG), BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE))
+
+fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): Flowable<ByteArray> =
+        Flowable.defer { characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER) }
+                .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
+                .map { it.value }
+                .takeUntil(assertConnected { device, reason -> CharacteristicChangedDeviceDisconnected(device, reason, characteristic.service, characteristic) }.andThen(Flowable.just(Unit)))
 
 fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
         Maybe.defer {
