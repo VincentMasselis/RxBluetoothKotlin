@@ -83,6 +83,16 @@ class CharacteristicNotFound(val device: BluetoothDevice, val characteristicUUID
             "CharacteristicNotFound(device=$device, characteristicUUID=$characteristicUUID)"
 }
 
+/**
+ * Fired when calling [android.bluetooth.BluetoothGatt.rxEnableNotification] or
+ * [android.bluetooth.BluetoothGatt.rxDisableNotification] and the descriptor for notifications is
+ * not found.
+ */
+class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UUID, val descriptorUUID: UUID) : Throwable() {
+    override fun toString(): String =
+            "DescriptorNotFound(device=$device, characteristicUUID=$characteristicUUID, descriptorUUID=$descriptorUUID)"
+}
+
 // ------------------ Bluetooth exceptions for I/O only
 
 /**

@@ -13,6 +13,7 @@ import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
+import java.util.*
 
 fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> =
         EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }) {
@@ -38,10 +39,15 @@ fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> 
                     else Maybe.just(readDescriptor.value)
                 }
 
-fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray): Completable =
+fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Completable =
         EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorWriteDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }) {
             Single
                     .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
+                        if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
+                            downStream.onSuccess(descriptor to BluetoothGatt.GATT_SUCCESS)
+                            return@create
+                        }
+
                         downStream.setDisposable(descriptorWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
                         logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
                         descriptor.value = value
