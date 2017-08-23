@@ -24,18 +24,17 @@ import java.util.concurrent.TimeUnit
 fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null, flushEvery: Pair<Long, TimeUnit>? = null): Flowable<ScanResult> =
         Completable
                 .defer {
-                    if (adapter == null)
-                        return@defer Completable.error(DeviceDoesNotSupportBluetooth())
-                    else if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-                        return@defer Completable.error(NeedLocationPermission())
-                    else if (adapter.isEnabled.not())
-                        return@defer Completable.error(BluetoothIsTurnedOff())
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
-                        if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not())
-                            return@defer Completable.error(LocationServiceDisabled())
+                    when {
+                        adapter == null -> return@defer Completable.error(DeviceDoesNotSupportBluetooth())
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> return@defer Completable.error(NeedLocationPermission())
+                        adapter.isEnabled.not() -> return@defer Completable.error(BluetoothIsTurnedOff())
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                            val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
+                            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not())
+                                return@defer Completable.error(LocationServiceDisabled())
+                        }
                     }
+
                     Completable.complete()
                 }
                 .andThen(
