@@ -16,28 +16,36 @@ import java.util.*
  * enable Bluetooth by starting an activity for result with this intent :
  * [android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE]
  */
-class BluetoothIsTurnedOff : Throwable()
+class BluetoothIsTurnedOff : Throwable()    {
+    override fun toString(): String = "BluetoothIsTurnedOff()"
+}
 
 // ------------------ Bluetooth exceptions for scanning only
 
 /**
  * Fire this error if the current device doesn't support Bluetooth.
  */
-class DeviceDoesNotSupportBluetooth : Throwable()
+class DeviceDoesNotSupportBluetooth : Throwable()   {
+    override fun toString(): String = "DeviceDoesNotSupportBluetooth()"
+}
 
 /**
  * Error fired if the location permission is require for the current app. You have to request for
  * the missing permission [android.Manifest.permission.ACCESS_COARSE_LOCATION] or
  * [android.Manifest.permission.ACCESS_FINE_LOCATION]
  */
-class NeedLocationPermission : Throwable()
+class NeedLocationPermission : Throwable()  {
+    override fun toString(): String = "NeedLocationPermission()"
+}
 
 /**
  * Fired if location service is disabled for the app. You can ask the user to enable Location
  * service by starting an activity for result with this intent :
  * [android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS]
  */
-class LocationServiceDisabled : Throwable()
+class LocationServiceDisabled : Throwable() {
+    override fun toString(): String = "LocationServiceDisabled()"
+}
 
 /**
  * Fired if an error append when scanning.
@@ -55,7 +63,9 @@ class ScanFailedException(val reason: Int) : Throwable() {
  * Exception fired when trying to connect on a remote device while local device doesn't support
  * bluetooth
  */
-class LocalDeviceDoesNotSupportBluetooth : Throwable()
+class LocalDeviceDoesNotSupportBluetooth : Throwable()  {
+    override fun toString(): String = "LocalDeviceDoesNotSupportBluetooth()"
+}
 
 /**
  * Fired when a I/O operation takes more than 1 minute to be executed. Normally, a
@@ -64,7 +74,9 @@ class LocalDeviceDoesNotSupportBluetooth : Throwable()
  * callback and the [DeviceDisconnected] exception is not fired ¯\_(ツ)_/¯. Is this case, this
  * exception is fired.
  */
-class BluetoothTimeout : Throwable()
+class BluetoothTimeout : Throwable()    {
+    override fun toString(): String = "BluetoothTimeout()"
+}
 
 /**
  * Fired when trying to search a characteristic whereas services are not discovered
