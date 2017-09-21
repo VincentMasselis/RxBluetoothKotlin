@@ -15,10 +15,10 @@ fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<Byt
         EnqueueSingle(semaphore, assertConnected { device, reason -> CharacteristicReadDeviceDisconnected(device, reason, characteristic.service, characteristic) }) {
             Single
                     .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                        downStream.setDisposable(characteristicReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(characteristicReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "readCharacteristic ${characteristic.uuid}")
                         if (readCharacteristic(characteristic).not())
-                            downStream.onError(CannotInitializeCharacteristicReading(
+                            downStream.tryOnError(CannotInitializeCharacteristicReading(
                                     device,
                                     characteristic.service,
                                     characteristic,
@@ -73,11 +73,11 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
         EnqueueSingle(semaphore, assertConnected { device, reason -> CharacteristicWriteDeviceDisconnected(device, reason, characteristic.service, characteristic, value) }) {
             Single
                     .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                        downStream.setDisposable(characteristicWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(characteristicWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "writeCharacteristic ${characteristic.uuid} with value ${value.toHexString()}")
                         characteristic.value = value
                         if (writeCharacteristic(characteristic).not())
-                            downStream.onError(CannotInitializeCharacteristicWrite(
+                            downStream.tryOnError(CannotInitializeCharacteristicWrite(
                                     device,
                                     characteristic.service,
                                     characteristic,

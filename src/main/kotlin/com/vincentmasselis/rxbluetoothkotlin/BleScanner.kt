@@ -42,11 +42,11 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                             val callback = object : ScanCallback() {
                                 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
                                 override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
-                                    if (downStream.isCancelled.not()) downStream.onNext(result)
+                                    downStream.onNext(result)
                                 }
 
                                 override fun onScanFailed(errorCode: Int) {
-                                    if (downStream.isCancelled.not()) downStream.onError(ScanFailedException(errorCode))
+                                    downStream.tryOnError(ScanFailedException(errorCode))
                                 }
                             }
                             val scanner = BluetoothLeScannerCompat.getScanner()
@@ -57,9 +57,8 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                             IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
                                     .toObservable(context)
                                     .subscribe { (_, intent) ->
-                                        val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                                        when (state) {
-                                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.onError(BluetoothIsTurnedOff())
+                                        when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(BluetoothIsTurnedOff())
                                             else -> {
                                             }
                                         }

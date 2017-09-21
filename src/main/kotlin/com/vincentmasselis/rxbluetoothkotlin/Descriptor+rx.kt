@@ -19,10 +19,10 @@ fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> 
         EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }) {
             Single
                     .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                        downStream.setDisposable(descriptorReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(descriptorReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
                         if (readDescriptor(descriptor).not())
-                            downStream.onError(CannotInitializeDescriptorReading(
+                            downStream.tryOnError(CannotInitializeDescriptorReading(
                                     device,
                                     descriptor.characteristic?.service,
                                     descriptor.characteristic,
@@ -48,11 +48,11 @@ fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray,
                             return@create
                         }
 
-                        downStream.setDisposable(descriptorWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(descriptorWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
                         descriptor.value = value
                         if (writeDescriptor(descriptor).not())
-                            downStream.onError(CannotInitializeDescriptorWrite(
+                            downStream.tryOnError(CannotInitializeDescriptorWrite(
                                     device,
                                     descriptor.characteristic?.service,
                                     descriptor.characteristic,

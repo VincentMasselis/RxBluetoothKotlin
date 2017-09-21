@@ -30,7 +30,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                     if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")
-                        if (downStream.isDisposed.not()) downStream.onError(NeedLocationPermission())
+                        downStream.tryOnError(NeedLocationPermission())
                         return@create
                     }
 
@@ -38,7 +38,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                     if (btState == BluetoothAdapter.STATE_OFF) {
                         logger?.v(TAG, "Bluetooth is off")
-                        if (downStream.isDisposed.not()) downStream.onError(BluetoothIsTurnedOff())
+                        downStream.tryOnError(BluetoothIsTurnedOff())
                         return@create
                     }
 
@@ -100,7 +100,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
                     if (gatt == null) {
                         logger?.v(TAG, "connectGatt method returned null")
-                        if (downStream.isDisposed.not()) downStream.onError(LocalDeviceDoesNotSupportBluetooth())
+                        downStream.tryOnError(LocalDeviceDoesNotSupportBluetooth())
                         return@create
                     }
 
@@ -108,7 +108,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                     gatt.logger = logger
                     gatt.bluetoothState.onNext(btState)
 
-                    if (downStream.isDisposed.not()) downStream.onSuccess(gatt)
+                    downStream.onSuccess(gatt)
                 }
                 .subscribeOn(AndroidSchedulers.mainThread())
 
@@ -128,7 +128,7 @@ fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> =
                                             downStream.onNext(newState to status)
 
                                         //TODO Evaluate if it's a good idea to returns an error only for the condition of the new state
-                                        if (status != GATT_SUCCESS) downStream.onError(GattDeviceDisconnected(device, status))
+                                        if (status != GATT_SUCCESS) downStream.tryOnError(GattDeviceDisconnected(device, status))
                                     }
                     )
                 }
@@ -179,7 +179,7 @@ private val BluetoothGatt._connectionState: BehaviorSubject<Pair<Int, Int>> by F
  * The second [Int] is not documented by Google and can contains different values between
  * manufacturers. Generally, It match theses values https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h
  */
-val BluetoothGatt.rxConnectionState: Observable<Pair <Int, Int>> get() = _connectionState.hide()
+val BluetoothGatt.rxConnectionState: Observable<Pair<Int, Int>> get() = _connectionState.hide()
 
 /**
  * Returns a completable that emit errors when a disconnection with the device occurs with an error
@@ -210,9 +210,9 @@ fun BluetoothGatt.rxReadRssi(): Maybe<Int> =
         EnqueueSingle(semaphore, assertConnected(::RssiDeviceDisconnected)) {
             Single
                     .create<Pair<Int, Int>> { downStream ->
-                        downStream.setDisposable(readRemoteRssiSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(readRemoteRssiSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "readRemoteRssi")
-                        if (readRemoteRssi().not()) downStream.onError(CannotInitializeRssiReading(device))
+                        if (readRemoteRssi().not()) downStream.tryOnError(CannotInitializeRssiReading(device))
                     }
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
@@ -227,9 +227,9 @@ fun BluetoothGatt.rxDiscoverServices(): Maybe<List<BluetoothGattService>> =
         EnqueueSingle(semaphore, assertConnected(::DiscoverServicesDeviceDisconnected)) {
             Single
                     .create<Int> { downStream ->
-                        downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "discoverServices")
-                        if (discoverServices().not()) downStream.onError(CannotInitializeServicesDiscovering(device))
+                        if (discoverServices().not()) downStream.tryOnError(CannotInitializeServicesDiscovering(device))
                     }
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
@@ -245,9 +245,9 @@ fun BluetoothGatt.rxRequestMtu(mtu: Int): Maybe<Int> =
         EnqueueSingle(semaphore, assertConnected(::MtuDeviceDisconnected)) {
             Single
                     .create<Pair<Int, Int>> { downStream ->
-                        downStream.setDisposable(mtuChangedSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                        downStream.setDisposable(mtuChangedSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "requestMtu")
-                        if (requestMtu(mtu).not()) downStream.onError(CannotInitializeMtuRequesting(device))
+                        if (requestMtu(mtu).not()) downStream.tryOnError(CannotInitializeMtuRequesting(device))
                     }
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
