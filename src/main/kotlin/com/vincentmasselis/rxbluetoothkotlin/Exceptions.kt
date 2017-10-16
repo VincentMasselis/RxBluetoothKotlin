@@ -16,7 +16,7 @@ import java.util.*
  * enable Bluetooth by starting an activity for result with this intent :
  * [android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE]
  */
-class BluetoothIsTurnedOff : Throwable()    {
+class BluetoothIsTurnedOff : Throwable() {
     override fun toString(): String = "BluetoothIsTurnedOff()"
 }
 
@@ -25,7 +25,7 @@ class BluetoothIsTurnedOff : Throwable()    {
 /**
  * Fire this error if the current device doesn't support Bluetooth.
  */
-class DeviceDoesNotSupportBluetooth : Throwable()   {
+class DeviceDoesNotSupportBluetooth : Throwable() {
     override fun toString(): String = "DeviceDoesNotSupportBluetooth()"
 }
 
@@ -34,7 +34,7 @@ class DeviceDoesNotSupportBluetooth : Throwable()   {
  * the missing permission [android.Manifest.permission.ACCESS_COARSE_LOCATION] or
  * [android.Manifest.permission.ACCESS_FINE_LOCATION]
  */
-class NeedLocationPermission : Throwable()  {
+class NeedLocationPermission : Throwable() {
     override fun toString(): String = "NeedLocationPermission()"
 }
 
@@ -63,7 +63,7 @@ class ScanFailedException(val reason: Int) : Throwable() {
  * Exception fired when trying to connect on a remote device while local device doesn't support
  * bluetooth
  */
-class LocalDeviceDoesNotSupportBluetooth : Throwable()  {
+class LocalDeviceDoesNotSupportBluetooth : Throwable() {
     override fun toString(): String = "LocalDeviceDoesNotSupportBluetooth()"
 }
 
@@ -74,7 +74,7 @@ class LocalDeviceDoesNotSupportBluetooth : Throwable()  {
  * callback and the [DeviceDisconnected] exception is not fired ¯\_(ツ)_/¯. Is this case, this
  * exception is fired.
  */
-class BluetoothTimeout : Throwable()    {
+class BluetoothTimeout : Throwable() {
     override fun toString(): String = "BluetoothTimeout()"
 }
 
@@ -117,6 +117,14 @@ class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UU
  */
 sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : Throwable() {
     override fun toString(): String = "DeviceDisconnected(device=$device, reason=$reason)"
+
+    /**
+     * Fired when device disconnect. Unlike the other sealed classes, this [Throwable] doesn't
+     * provides the bluetooth operation which failed.
+     */
+    class DeviceDisconnection(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+        override fun toString(): String = "DeviceDisconnection() ${super.toString()}"
+    }
 
     /**
      * Fired when device disconnect while fetching RSSI

@@ -2,6 +2,7 @@ package com.vincentmasselis.rxbluetoothkotlin
 
 import io.reactivex.Completable
 import io.reactivex.Flowable
+import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 import org.junit.Test
@@ -12,6 +13,22 @@ import kotlin.test.assertFailsWith
 class RxJavaUnitTest {
 
     private class ExceptedException : Throwable()
+
+    @Test
+    fun takeUntilCompleteTest() {
+        println()
+        println("-------- takeUntilCompleteTest")
+
+        Observable.interval(50, TimeUnit.MILLISECONDS)
+                .takeUntil(Completable.timer(175, TimeUnit.MILLISECONDS).toObservable<Long>())
+                .doOnEach {
+                    println("value : ${it.value}")
+                    println("error : ${it.error}")
+                    println("complete : ${it.isOnComplete}")
+                }
+                .run { assertEquals(blockingLast(), 2) }
+    }
+
 
     @Test
     fun mergeWithErrorTest() {

@@ -112,39 +112,54 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                 }
                 .subscribeOn(AndroidSchedulers.mainThread())
 
-fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> =
-        Observable
-                .create { downStream ->
-                    downStream.setDisposable(
-                            rxConnectionState
-                                    .observeOn(AndroidSchedulers.mainThread())
-                                    .subscribe { (newState, status) ->
-                                        if (newState == BluetoothProfile.STATE_CONNECTING)
-                                            downStream.onNext(newState to status)
-                                        else if (newState == BluetoothProfile.STATE_CONNECTED) {
-                                            downStream.onNext(newState to status)
-                                            downStream.onComplete()
-                                        } else if (newState == BluetoothProfile.STATE_DISCONNECTING || newState == BluetoothProfile.STATE_DISCONNECTED)
-                                            downStream.onNext(newState to status)
 
-                                        //TODO Evaluate if it's a good idea to returns an error only for the condition of the new state
-                                        if (status != GATT_SUCCESS) downStream.tryOnError(GattDeviceDisconnected(device, status))
-                                    }
-                    )
-                }
-
-fun BluetoothGatt.rxDisconnect(): Completable =
-        Completable
-                .create { downStream ->
+/**
+ * Returns the same values than [rxConnectionState] but it completes when [BluetoothProfile.STATE_CONNECTED]
+ * is fired otherwise it fire an error if status is different from [GATT_SUCCESS].
+ */
+fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> = Observable
+        .create { downStream ->
+            downStream.setDisposable(
                     rxConnectionState
                             .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe { (newState) ->
-                                if (newState == BluetoothProfile.STATE_CONNECTED || newState == BluetoothProfile.STATE_CONNECTING) disconnect()
-                                else if (newState == BluetoothProfile.STATE_DISCONNECTED) downStream.onComplete()
+                            .subscribe { (newState, status) ->
+                                if (newState == BluetoothProfile.STATE_CONNECTING)
+                                    downStream.onNext(newState to status)
+                                else if (newState == BluetoothProfile.STATE_CONNECTED) {
+                                    downStream.onNext(newState to status)
+                                    downStream.onComplete()
+                                } else if (newState == BluetoothProfile.STATE_DISCONNECTING || newState == BluetoothProfile.STATE_DISCONNECTED)
+                                    downStream.onNext(newState to status)
+
+                                //TODO Evaluate if it's a good idea to returns an error only for the condition of the new state
+                                if (status != GATT_SUCCESS) downStream.tryOnError(GattDeviceDisconnected(device, status))
                             }
-                            .run { downStream.setDisposable(this) }
-                }
-                .subscribeOn(AndroidSchedulers.mainThread())
+            )
+        }
+
+/**
+ * Returns a completable that emit a [DeviceDisconnection] which contains the status code / reason
+ * when a disconnection with the device occurs. If the disconnection is excepted (by calling
+ * [rxUnsafeDisconnect] for example), it just completes.
+ */
+fun BluetoothGatt.rxListenDisconnection(): Completable = assertConnected(::DeviceDisconnection)
+
+/**
+ * Initialize a disconnection and completes when it's done. It doesn't emit any error.
+ * It's called unsafe because it doesn't check that the disconnection is caused by this method or by
+ * an other reason.
+ */
+fun BluetoothGatt.rxUnsafeDisconnect(): Completable = Completable
+        .create { downStream ->
+            rxConnectionState
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe { (newState) ->
+                        if (newState == BluetoothProfile.STATE_CONNECTED || newState == BluetoothProfile.STATE_CONNECTING) disconnect()
+                        else if (newState == BluetoothProfile.STATE_DISCONNECTED) downStream.onComplete()
+                    }
+                    .run { downStream.setDisposable(this) }
+        }
+        .subscribeOn(AndroidSchedulers.mainThread())
 
 // ------------------------------ Bluetooth state
 
@@ -181,12 +196,8 @@ private val BluetoothGatt._connectionState: BehaviorSubject<Pair<Int, Int>> by F
  */
 val BluetoothGatt.rxConnectionState: Observable<Pair<Int, Int>> get() = _connectionState.hide()
 
-/**
- * Returns a completable that emit errors when a disconnection with the device occurs with an error
- * code otherwise it completes.
- */
-internal fun BluetoothGatt.assertConnected(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected): Completable =
-        Completable.ambArray(
+internal fun BluetoothGatt.assertConnected(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected): Completable = Completable
+        .ambArray(
                 bluetoothState
                         .filter { it != BluetoothAdapter.STATE_ON }
                         .firstOrError()
