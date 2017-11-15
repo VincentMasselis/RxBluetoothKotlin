@@ -36,6 +36,7 @@ internal fun BluetoothGatt.clientIf() =
 internal fun BluetoothGattService.device() =
         try {
             this.javaClass.getDeclaredMethod("getDevice")
+                    .apply { this.isAccessible = true }
                     .invoke(this)
         } catch (e: Throwable) {
             e
