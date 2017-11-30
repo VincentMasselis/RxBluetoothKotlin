@@ -1,7 +1,7 @@
 # RxBluetoothKotlin
 Android + BLE + Kotlin + RxJava2
 
-Made with love at the [Equisense](http://equisense.com) HQ. This library is used in our [Equisense app](https://play.google.com/store/apps/details?id=com.equisense.motion).
+Made with love at the [Equisense](http://equisense.com) HQ. This library is used in our [Equisense app](https://play.google.com/store/apps/details?id=com.equisense.motions).
 
 /!\ Work in progress : Destructive code is often commited on this repo, an alpha release will be released with jitpack when the library will be stable enough.
 
