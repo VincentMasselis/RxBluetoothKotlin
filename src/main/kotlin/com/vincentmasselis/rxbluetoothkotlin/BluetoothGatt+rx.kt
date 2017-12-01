@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.*
 import android.bluetooth.BluetoothGatt.GATT_SUCCESS
 import android.content.Context
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.support.annotation.RequiresApi
@@ -104,9 +105,8 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                         return@create
                     }
 
-                    gatt.callbacks = callbacks
+                    gatt.context = context
                     gatt.logger = logger
-                    gatt.bluetoothState.onNext(btState)
 
                     downStream.onSuccess(gatt)
                 }
@@ -161,17 +161,15 @@ fun BluetoothGatt.rxUnsafeDisconnect(): Completable = Completable
         }
         .subscribeOn(AndroidSchedulers.mainThread())
 
-// ------------------------------ Bluetooth state
+// ------------------------------ Additional properties
+
+private var BluetoothGatt.context: Context? by NullableFieldProperty { null }
+
+// ------------------------------ Logging
 
 internal var BluetoothGatt.logger: Logger? by NullableFieldProperty { null }
 
-// ------------------------------ Bluetooth state
-
-private val BluetoothGatt.bluetoothState: BehaviorSubject<Int> by FieldProperty { BehaviorSubject.create() }
-
 // ------------------------------ Callbacks
-
-private var BluetoothGatt.callbacks: BluetoothGattCallback by FieldProperty { object : BluetoothGattCallback() {} }
 
 private var BluetoothGatt.readRemoteRssiSubject: PublishSubject<Pair<Int, Int>> by FieldProperty { PublishSubject.create() }
 private var BluetoothGatt.servicesDiscoveredSubject: PublishSubject<Int> by FieldProperty { PublishSubject.create() }
@@ -198,7 +196,15 @@ val BluetoothGatt.rxConnectionState: Observable<Pair<Int, Int>> get() = _connect
 
 internal fun BluetoothGatt.assertConnected(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected): Completable = Completable
         .ambArray(
-                bluetoothState
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+                        .toObservable(context!!)
+                        .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) }
+                        .startWith(
+                                if ((context!!.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                                    BluetoothAdapter.STATE_ON
+                                else
+                                    BluetoothAdapter.STATE_OFF
+                        )
                         .filter { it != BluetoothAdapter.STATE_ON }
                         .firstOrError()
                         .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) },
