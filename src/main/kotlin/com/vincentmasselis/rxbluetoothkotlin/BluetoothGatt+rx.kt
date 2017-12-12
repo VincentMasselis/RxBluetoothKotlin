@@ -117,6 +117,15 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                 }
                 .subscribeOn(AndroidSchedulers.mainThread())
 
+/**
+ * This method checks if the current [BluetoothGatt] is an instance created by using [rxGatt] by
+ * checking if [BluetoothGatt] contains an instance of [Context] in the property [context], only
+ * [rxGatt] do this.
+ */
+private fun BluetoothGatt.checkSubjectsAreCalledByCallbacks() {
+    if (context == null) throw IllegalStateException("In order to use this method, you have to connect by using rxGatt()")
+}
+
 private fun BluetoothGatt.listenBluetoothTurnedOff(): Completable =
         IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
                 .toObservable(context!!)
@@ -158,6 +167,7 @@ fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> = Observable
             )
         }
         .ambWith(listenBluetoothTurnedOff().toObservable())
+        .apply { checkSubjectsAreCalledByCallbacks() }
 
 /**
  * Initialize a disconnection and completes when it's done. It can emit [BluetoothIsTurnedOff] or
@@ -179,6 +189,7 @@ fun BluetoothGatt.rxDisconnect(): Completable = Completable
                             })
         }
         .ambWith(listenBluetoothTurnedOff())
+        .apply { checkSubjectsAreCalledByCallbacks() }
         .subscribeOn(AndroidSchedulers.mainThread())
 
 /**
@@ -238,6 +249,7 @@ internal fun BluetoothGatt.assertConnected(exception: (device: BluetoothDevice, 
                                     })
                 }
         )
+        .apply { checkSubjectsAreCalledByCallbacks() }
 
 // ------------------------------ I/O Queue
 
@@ -264,12 +276,11 @@ fun BluetoothGatt.rxReadRssi(): Maybe<Int> =
 
 fun BluetoothGatt.rxDiscoverServices(): Maybe<List<BluetoothGattService>> =
         EnqueueSingle(semaphore, assertConnected(::DiscoverServicesDeviceDisconnected)) {
-            Single
-                    .create<Int> { downStream ->
-                        downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                        logger?.v(TAG, "discoverServices")
-                        if (discoverServices().not()) downStream.tryOnError(CannotInitializeServicesDiscovering(device))
-                    }
+            Single.create<Int> { downStream ->
+                downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                logger?.v(TAG, "discoverServices")
+                if (discoverServices().not()) downStream.tryOnError(CannotInitializeServicesDiscovering(device))
+            }
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
                 .flatMap { status ->

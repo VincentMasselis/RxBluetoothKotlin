@@ -81,9 +81,9 @@ class BluetoothTimeout : Throwable() {
 /**
  * Fired when trying to search a characteristic whereas services are not discovered
  */
-class SearchingCharacteristicButServiceNotDiscovered(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
+class SearchingCharacteristicButServicesNotDiscovered(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
     override fun toString(): String =
-            "SearchingCharacteristicButServiceNotDiscovered(device=$device, characteristicUUID=$characteristicUUID)"
+            "SearchingCharacteristicButServicesNotDiscovered(device=$device, characteristicUUID=$characteristicUUID)"
 }
 
 /**

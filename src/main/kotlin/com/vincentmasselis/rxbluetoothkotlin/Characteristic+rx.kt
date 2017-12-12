@@ -152,7 +152,7 @@ fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): 
 fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
         Maybe.defer {
             if (services.isEmpty())
-                Maybe.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServiceNotDiscovered(device, uuid))
+                Maybe.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
             else {
                 services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Maybe.just(it) } }
                 Maybe.empty()
@@ -162,7 +162,7 @@ fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacte
 fun BluetoothGatt.rxCharacteristic(uuid: UUID): Single<BluetoothGattCharacteristic> =
         Single.defer {
             if (services.isEmpty())
-                Single.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServiceNotDiscovered(device, uuid))
+                Single.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
             else {
                 services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Single.just(it) } }
                 Single.error<BluetoothGattCharacteristic>(CharacteristicNotFound(device, uuid))
