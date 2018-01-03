@@ -9,12 +9,18 @@ import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.DescriptorWriteD
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.DescriptorReadingFailed
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.DescriptorWriteFailed
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
-import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import java.util.*
 
+/**
+ * Reactive way to read a value from a [descriptor].
+ *
+ * @return onSuccess with the value [ByteArray] when the [descriptor] is correctly read.
+ * @return onComplete when the [BluetoothGatt] connection is closed by the user
+ * @return onError if an error has occurred while reading
+ */
 fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> =
         EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }) {
             Single
@@ -39,7 +45,16 @@ fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> 
                     else Maybe.just(readDescriptor.value)
                 }
 
-fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Completable =
+/**
+ * Reactive way to write a [value] into a [descriptor].
+ * Set [checkIfAlreadyWritten] to true to avoid this write operation if [value] is equals to the
+ * current [BluetoothGattDescriptor.getValue].
+ *
+ * @return onSuccess with the written [descriptor] and when [value] is correctly wrote
+ * @return onComplete when the [BluetoothGatt] connection is closed by the user
+ * @return onError if an error has occurred while writing
+ */
+fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor> =
         EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorWriteDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }) {
             Single
                     .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
@@ -65,7 +80,7 @@ fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray,
                     }
                     .subscribeOn(AndroidSchedulers.mainThread())
         }
-                .flatMapCompletable { (wroteDescriptor, status) ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Completable.error(DescriptorWriteFailed(status, device, wroteDescriptor.characteristic.service, wroteDescriptor.characteristic, wroteDescriptor, value))
-                    else Completable.complete()
+                .flatMap { (wroteDescriptor, status) ->
+                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(DescriptorWriteFailed(status, device, wroteDescriptor.characteristic.service, wroteDescriptor.characteristic, wroteDescriptor, value))
+                    else Maybe.just(wroteDescriptor)
                 }

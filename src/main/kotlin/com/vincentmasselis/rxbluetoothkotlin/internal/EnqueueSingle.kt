@@ -1,5 +1,6 @@
 package com.vincentmasselis.rxbluetoothkotlin.internal
 
+import com.vincentmasselis.rxbluetoothkotlin.BluetoothTimeout
 import io.reactivex.Completable
 import io.reactivex.Maybe
 import io.reactivex.Single
@@ -28,7 +29,7 @@ internal fun <R> EnqueueSingle(semaphore: Semaphore, disconnectedCompl: Completa
                                 // when the connection is lost. For example, we saw up to 16 seconds on a
                                 // Nexus 4 between the last call to write and the moment when the system
                                 // fallback the disconnection.
-                                .timeout(1, TimeUnit.MINUTES)
+                                .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
                                 .toMaybe()
                 )
                 .doAfterTerminate { semaphore.release() }
