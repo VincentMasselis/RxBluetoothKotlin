@@ -22,28 +22,41 @@ import java.util.*
  * @return onError if an error has occurred while reading
  */
 fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> =
-        EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }) {
-            Single
-                    .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                        downStream.setDisposable(descriptorReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                        logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
-                        if (readDescriptor(descriptor).not())
-                            downStream.tryOnError(CannotInitializeDescriptorReading(
-                                    device,
-                                    descriptor.characteristic?.service,
-                                    descriptor.characteristic,
-                                    descriptor,
-                                    internalService(),
-                                    clientIf(),
-                                    descriptor.characteristic?.service?.device(),
-                                    isDeviceBusy()))
-                    }
-                    .subscribeOn(AndroidSchedulers.mainThread())
+    EnqueueSingle(
+        semaphore,
+        assertConnected { device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }) {
+        Single
+            .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
+                downStream.setDisposable(descriptorReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
+                if (readDescriptor(descriptor).not())
+                    downStream.tryOnError(
+                        CannotInitializeDescriptorReading(
+                            device,
+                            descriptor.characteristic?.service,
+                            descriptor.characteristic,
+                            descriptor,
+                            internalService(),
+                            clientIf(),
+                            descriptor.characteristic?.service?.device(),
+                            isDeviceBusy()
+                        )
+                    )
+            }
+            .subscribeOn(AndroidSchedulers.mainThread())
+    }
+        .flatMap { (readDescriptor, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
+                DescriptorReadingFailed(
+                    status,
+                    device,
+                    readDescriptor.characteristic.service,
+                    readDescriptor.characteristic,
+                    readDescriptor
+                )
+            )
+            else Maybe.just(readDescriptor.value)
         }
-                .flatMap { (readDescriptor, status) ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(DescriptorReadingFailed(status, device, readDescriptor.characteristic.service, readDescriptor.characteristic, readDescriptor))
-                    else Maybe.just(readDescriptor.value)
-                }
 
 /**
  * Reactive way to write a [value] into a [descriptor].
@@ -55,32 +68,46 @@ fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> 
  * @return onError if an error has occurred while writing
  */
 fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor> =
-        EnqueueSingle(semaphore, assertConnected { device, reason -> DescriptorWriteDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }) {
-            Single
-                    .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                        if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
-                            downStream.onSuccess(descriptor to BluetoothGatt.GATT_SUCCESS)
-                            return@create
-                        }
-
-                        downStream.setDisposable(descriptorWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                        logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
-                        descriptor.value = value
-                        if (writeDescriptor(descriptor).not())
-                            downStream.tryOnError(CannotInitializeDescriptorWrite(
-                                    device,
-                                    descriptor.characteristic?.service,
-                                    descriptor.characteristic,
-                                    descriptor,
-                                    value,
-                                    internalService(),
-                                    clientIf(),
-                                    descriptor.characteristic?.service?.device(),
-                                    isDeviceBusy()))
-                    }
-                    .subscribeOn(AndroidSchedulers.mainThread())
-        }
-                .flatMap { (wroteDescriptor, status) ->
-                    if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(DescriptorWriteFailed(status, device, wroteDescriptor.characteristic.service, wroteDescriptor.characteristic, wroteDescriptor, value))
-                    else Maybe.just(wroteDescriptor)
+    EnqueueSingle(
+        semaphore,
+        assertConnected { device, reason -> DescriptorWriteDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }) {
+        Single
+            .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
+                if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
+                    downStream.onSuccess(descriptor to BluetoothGatt.GATT_SUCCESS)
+                    return@create
                 }
+
+                downStream.setDisposable(descriptorWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
+                descriptor.value = value
+                if (writeDescriptor(descriptor).not())
+                    downStream.tryOnError(
+                        CannotInitializeDescriptorWrite(
+                            device,
+                            descriptor.characteristic?.service,
+                            descriptor.characteristic,
+                            descriptor,
+                            value,
+                            internalService(),
+                            clientIf(),
+                            descriptor.characteristic?.service?.device(),
+                            isDeviceBusy()
+                        )
+                    )
+            }
+            .subscribeOn(AndroidSchedulers.mainThread())
+    }
+        .flatMap { (wroteDescriptor, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
+                DescriptorWriteFailed(
+                    status,
+                    device,
+                    wroteDescriptor.characteristic.service,
+                    wroteDescriptor.characteristic,
+                    wroteDescriptor,
+                    value
+                )
+            )
+            else Maybe.just(wroteDescriptor)
+        }

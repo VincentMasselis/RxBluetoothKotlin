@@ -20,7 +20,7 @@ class FieldProperty<R, T : Any>(val initializer: R.() -> T = { throw IllegalStat
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T =
-            map[thisRef] ?: setValue(thisRef, property, initializer(thisRef))
+        map[thisRef] ?: setValue(thisRef, property, initializer(thisRef))
 
     operator fun setValue(thisRef: R, property: KProperty<*>, value: T): T {
         map[thisRef] = value
@@ -44,7 +44,7 @@ class NullableFieldProperty<R, T>(val initializer: R.() -> T? = { null }) {
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T? =
-            if (thisRef in map) map[thisRef] else setValue(thisRef, property, initializer(thisRef))
+        if (thisRef in map) map[thisRef] else setValue(thisRef, property, initializer(thisRef))
 
     operator fun setValue(thisRef: R, property: KProperty<*>, value: T?): T? {
         map[thisRef] = value

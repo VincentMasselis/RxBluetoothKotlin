@@ -22,63 +22,65 @@ import java.util.concurrent.TimeUnit
 
 
 fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null, flushEvery: Pair<Long, TimeUnit>? = null): Flowable<ScanResult> =
-        Completable
-                .defer {
-                    when {
-                        adapter == null -> return@defer Completable.error(DeviceDoesNotSupportBluetooth())
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> return@defer Completable.error(NeedLocationPermission())
-                        adapter.isEnabled.not() -> return@defer Completable.error(BluetoothIsTurnedOff())
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
-                            val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
-                            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not())
-                                return@defer Completable.error(LocationServiceDisabled())
-                        }
+    Completable
+        .defer {
+            when {
+                adapter == null -> return@defer Completable.error(DeviceDoesNotSupportBluetooth())
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> return@defer Completable.error(
+                    NeedLocationPermission()
+                )
+                adapter.isEnabled.not() -> return@defer Completable.error(BluetoothIsTurnedOff())
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
+                    if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not())
+                        return@defer Completable.error(LocationServiceDisabled())
+                }
+            }
+
+            Completable.complete()
+        }
+        .andThen(
+            Flowable.create<ScanResult>({ downStream ->
+                val callback = object : ScanCallback() {
+                    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+                    override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
+                        downStream.onNext(result)
                     }
 
-                    Completable.complete()
+                    override fun onScanFailed(errorCode: Int) {
+                        downStream.tryOnError(ScanFailedException(errorCode))
+                    }
                 }
-                .andThen(
-                        Flowable.create<ScanResult>({ downStream ->
-                            val callback = object : ScanCallback() {
-                                @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-                                override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
-                                    downStream.onNext(result)
-                                }
+                val scanner = BluetoothLeScannerCompat.getScanner()
 
-                                override fun onScanFailed(errorCode: Int) {
-                                    downStream.tryOnError(ScanFailedException(errorCode))
-                                }
+
+                val disposables = CompositeDisposable()
+
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+                    .toObservable(context)
+                    .subscribe { (_, intent) ->
+                        when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(BluetoothIsTurnedOff())
+                            else -> {
                             }
-                            val scanner = BluetoothLeScannerCompat.getScanner()
+                        }
+                    }
+                    .let { disposables.add(it) }
 
+                flushEvery?.run {
+                    Observable
+                        .interval(flushEvery.first, flushEvery.second, AndroidSchedulers.mainThread())
+                        .subscribe { scanner.flushPendingScanResults(callback) }
+                        .let { disposables.add(it) }
+                }
 
-                            val disposables = CompositeDisposable()
+                if (scanArgs != null) scanner.startScan(scanArgs.first, scanArgs.second, callback)
+                else scanner.startScan(callback)
 
-                            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-                                    .toObservable(context)
-                                    .subscribe { (_, intent) ->
-                                        when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(BluetoothIsTurnedOff())
-                                            else -> {
-                                            }
-                                        }
-                                    }
-                                    .let { disposables.add(it) }
-
-                            flushEvery?.run {
-                                Observable
-                                        .interval(flushEvery.first, flushEvery.second, AndroidSchedulers.mainThread())
-                                        .subscribe { scanner.flushPendingScanResults(callback) }
-                                        .let { disposables.add(it) }
-                            }
-
-                            if (scanArgs != null) scanner.startScan(scanArgs.first, scanArgs.second, callback)
-                            else scanner.startScan(callback)
-
-                            downStream.setCancellable {
-                                disposables.dispose()
-                                scanner.stopScan(callback)
-                            }
-                        }, BackpressureStrategy.BUFFER)
-                )
-                .subscribeOn(AndroidSchedulers.mainThread())
+                downStream.setCancellable {
+                    disposables.dispose()
+                    scanner.stopScan(callback)
+                }
+            }, BackpressureStrategy.BUFFER)
+        )
+        .subscribeOn(AndroidSchedulers.mainThread())

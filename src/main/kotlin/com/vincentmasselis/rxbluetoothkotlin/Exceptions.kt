@@ -83,7 +83,7 @@ class BluetoothTimeout : Throwable() {
  */
 class SearchingCharacteristicButServicesNotDiscovered(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
     override fun toString(): String =
-            "SearchingCharacteristicButServicesNotDiscovered(device=$device, characteristicUUID=$characteristicUUID)"
+        "SearchingCharacteristicButServicesNotDiscovered(device=$device, characteristicUUID=$characteristicUUID)"
 }
 
 /**
@@ -92,7 +92,7 @@ class SearchingCharacteristicButServicesNotDiscovered(val device: BluetoothDevic
  */
 class CharacteristicNotFound(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
     override fun toString(): String =
-            "CharacteristicNotFound(device=$device, characteristicUUID=$characteristicUUID)"
+        "CharacteristicNotFound(device=$device, characteristicUUID=$characteristicUUID)"
 }
 
 /**
@@ -102,7 +102,7 @@ class CharacteristicNotFound(val device: BluetoothDevice, val characteristicUUID
  */
 class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UUID, val descriptorUUID: UUID) : Throwable() {
     override fun toString(): String =
-            "DescriptorNotFound(device=$device, characteristicUUID=$characteristicUUID, descriptorUUID=$descriptorUUID)"
+        "DescriptorNotFound(device=$device, characteristicUUID=$characteristicUUID, descriptorUUID=$descriptorUUID)"
 }
 
 // ------------------ Bluetooth exceptions for I/O only
@@ -157,41 +157,66 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
     /**
      * Fired when device disconnect while reading characteristic
      */
-    class CharacteristicReadDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) : DeviceDisconnected(bluetoothDevice, reason) {
+    class CharacteristicReadDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
+        DeviceDisconnected(bluetoothDevice, reason) {
         override fun toString(): String =
-                "CharacteristicReadDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
+            "CharacteristicReadDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while writing characteristic
      */
-    class CharacteristicWriteDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val value: ByteArray) : DeviceDisconnected(bluetoothDevice, reason) {
+    class CharacteristicWriteDeviceDisconnected(
+        bluetoothDevice: BluetoothDevice,
+        reason: Int,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val value: ByteArray
+    ) : DeviceDisconnected(bluetoothDevice, reason) {
         override fun toString(): String =
-                "CharacteristicWriteDeviceDisconnected(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
+            "CharacteristicWriteDeviceDisconnected(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while listening changes on this [characteristic]
      */
-    class CharacteristicChangedDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) : DeviceDisconnected(bluetoothDevice, reason) {
+    class CharacteristicChangedDeviceDisconnected(
+        bluetoothDevice: BluetoothDevice,
+        reason: Int,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic
+    ) : DeviceDisconnected(bluetoothDevice, reason) {
         override fun toString(): String =
-                "CharacteristicChangedDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
+            "CharacteristicChangedDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while reading descriptor
      */
-    class DescriptorReadDeviceDisconnected(device: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val descriptor: BluetoothGattDescriptor) : DeviceDisconnected(device, reason) {
+    class DescriptorReadDeviceDisconnected(
+        device: BluetoothDevice,
+        reason: Int,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val descriptor: BluetoothGattDescriptor
+    ) : DeviceDisconnected(device, reason) {
         override fun toString(): String =
-                "DescriptorReadDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
+            "DescriptorReadDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while writing descriptor
      */
-    class DescriptorWriteDeviceDisconnected(device: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val descriptor: BluetoothGattDescriptor, val value: ByteArray) : DeviceDisconnected(device, reason) {
+    class DescriptorWriteDeviceDisconnected(
+        device: BluetoothDevice,
+        reason: Int,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val descriptor: BluetoothGattDescriptor,
+        val value: ByteArray
+    ) : DeviceDisconnected(device, reason) {
         override fun toString(): String =
-                "DescriptorWriteDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
+            "DescriptorWriteDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
     }
 }
 
@@ -215,7 +240,7 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
      */
     class CannotInitializeServicesDiscovering(device: BluetoothDevice) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeServicesDiscovering() ${super.toString()}"
+            "CannotInitializeServicesDiscovering() ${super.toString()}"
     }
 
     /**
@@ -228,76 +253,86 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
     /**
      * Fired when read request cannot be proceeded
      */
-    class CannotInitializeCharacteristicReading(device: BluetoothDevice,
-                                                val service: BluetoothGattService?,
-                                                val characteristic: BluetoothGattCharacteristic,
-                                                val properties: Int,
-                                                val internalService: Any,
-                                                val clientIf: Any,
-                                                val foundDevice: Any?,
-                                                val isDeviceBusy: Any) : CannotInitialize(device) {
+    class CannotInitializeCharacteristicReading(
+        device: BluetoothDevice,
+        val service: BluetoothGattService?,
+        val characteristic: BluetoothGattCharacteristic,
+        val properties: Int,
+        val internalService: Any,
+        val clientIf: Any,
+        val foundDevice: Any?,
+        val isDeviceBusy: Any
+    ) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeCharacteristicReading(service=$service, characteristic=$characteristic, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeCharacteristicReading(service=$service, characteristic=$characteristic, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 
     /**
      * Fired when write request cannot be proceeded
      */
-    class CannotInitializeCharacteristicWrite(device: BluetoothDevice,
-                                              val service: BluetoothGattService?,
-                                              val characteristic: BluetoothGattCharacteristic,
-                                              val value: ByteArray,
-                                              val properties: Int,
-                                              val internalService: Any,
-                                              val clientIf: Any,
-                                              val foundDevice: Any?,
-                                              val isDeviceBusy: Any) : CannotInitialize(device) {
+    class CannotInitializeCharacteristicWrite(
+        device: BluetoothDevice,
+        val service: BluetoothGattService?,
+        val characteristic: BluetoothGattCharacteristic,
+        val value: ByteArray,
+        val properties: Int,
+        val internalService: Any,
+        val clientIf: Any,
+        val foundDevice: Any?,
+        val isDeviceBusy: Any
+    ) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeCharacteristicWrite(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeCharacteristicWrite(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 
     /**
      * Fired when notification request cannot be proceeded
      */
-    class CannotInitializeCharacteristicNotification(device: BluetoothDevice,
-                                                     val service: BluetoothGattService,
-                                                     val characteristic: BluetoothGattCharacteristic,
-                                                     val internalService: Any,
-                                                     val clientIf: Any,
-                                                     val foundDevice: Any?) : CannotInitialize(device) {
+    class CannotInitializeCharacteristicNotification(
+        device: BluetoothDevice,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val internalService: Any,
+        val clientIf: Any,
+        val foundDevice: Any?
+    ) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeCharacteristicNotification(service=$service, characteristic=$characteristic, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice) ${super.toString()}"
+            "CannotInitializeCharacteristicNotification(service=$service, characteristic=$characteristic, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice) ${super.toString()}"
     }
 
     /**
      * Fired when read request cannot be proceeded
      */
-    class CannotInitializeDescriptorReading(device: BluetoothDevice,
-                                            val service: BluetoothGattService?,
-                                            val characteristic: BluetoothGattCharacteristic?,
-                                            val descriptor: BluetoothGattDescriptor,
-                                            val internalService: Any,
-                                            val clientIf: Any,
-                                            val foundDevice: Any?,
-                                            val isDeviceBusy: Any) : CannotInitialize(device) {
+    class CannotInitializeDescriptorReading(
+        device: BluetoothDevice,
+        val service: BluetoothGattService?,
+        val characteristic: BluetoothGattCharacteristic?,
+        val descriptor: BluetoothGattDescriptor,
+        val internalService: Any,
+        val clientIf: Any,
+        val foundDevice: Any?,
+        val isDeviceBusy: Any
+    ) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeDescriptorReading(service=$service, characteristic=$characteristic, descriptor=$descriptor, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeDescriptorReading(service=$service, characteristic=$characteristic, descriptor=$descriptor, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 
     /**
      * Fired when write request cannot be proceeded
      */
-    class CannotInitializeDescriptorWrite(device: BluetoothDevice,
-                                          val service: BluetoothGattService?,
-                                          val characteristic: BluetoothGattCharacteristic?,
-                                          val descriptor: BluetoothGattDescriptor,
-                                          val value: ByteArray,
-                                          val internalService: Any,
-                                          val clientIf: Any,
-                                          val foundDevice: Any?,
-                                          val isDeviceBusy: Any) : CannotInitialize(device) {
+    class CannotInitializeDescriptorWrite(
+        device: BluetoothDevice,
+        val service: BluetoothGattService?,
+        val characteristic: BluetoothGattCharacteristic?,
+        val descriptor: BluetoothGattDescriptor,
+        val value: ByteArray,
+        val internalService: Any,
+        val clientIf: Any,
+        val foundDevice: Any?,
+        val isDeviceBusy: Any
+    ) : CannotInitialize(device) {
         override fun toString(): String =
-                "CannotInitializeDescriptorWrite(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeDescriptorWrite(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 }
 
@@ -334,32 +369,52 @@ sealed class IOFailed(val reason: Int, val device: BluetoothDevice) : Throwable(
     /**
      * Fired when read request returns an error
      */
-    class CharacteristicReadingFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) : IOFailed(reason, device) {
+    class CharacteristicReadingFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
+        IOFailed(reason, device) {
         override fun toString(): String =
-                "CharacteristicReadingFailed(service=$service, characteristic=$characteristic) ${super.toString()}"
+            "CharacteristicReadingFailed(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
 
     /**
      * Fired when write request returns an error
      */
-    class CharacteristicWriteFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val value: ByteArray) : IOFailed(reason, device) {
+    class CharacteristicWriteFailed(
+        reason: Int,
+        device: BluetoothDevice,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val value: ByteArray
+    ) : IOFailed(reason, device) {
         override fun toString(): String =
-                "CharacteristicWriteFailed(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
+            "CharacteristicWriteFailed(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
     }
 
     /**
      * Fired when read request returns an error
      */
-    class DescriptorReadingFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val descriptor: BluetoothGattDescriptor) : IOFailed(reason, device) {
+    class DescriptorReadingFailed(
+        reason: Int,
+        device: BluetoothDevice,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val descriptor: BluetoothGattDescriptor
+    ) : IOFailed(reason, device) {
         override fun toString(): String =
-                "DescriptorReadingFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
+            "DescriptorReadingFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
     }
 
     /**
      * Fired when write request returns an error
      */
-    class DescriptorWriteFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic, val descriptor: BluetoothGattDescriptor, val value: ByteArray) : IOFailed(reason, device) {
+    class DescriptorWriteFailed(
+        reason: Int,
+        device: BluetoothDevice,
+        val service: BluetoothGattService,
+        val characteristic: BluetoothGattCharacteristic,
+        val descriptor: BluetoothGattDescriptor,
+        val value: ByteArray
+    ) : IOFailed(reason, device) {
         override fun toString(): String =
-                "DescriptorWriteFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
+            "DescriptorWriteFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
     }
 }
