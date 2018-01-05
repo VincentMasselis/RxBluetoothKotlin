@@ -180,14 +180,14 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
     /**
      * Fired when device disconnect while listening changes on this [characteristic]
      */
-    class CharacteristicChangedDeviceDisconnected(
+    class ListenChangesDeviceDisconnected(
         bluetoothDevice: BluetoothDevice,
         reason: Int,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic
     ) : DeviceDisconnected(bluetoothDevice, reason) {
         override fun toString(): String =
-            "CharacteristicChangedDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
+            "ListenChangesDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
 
     /**

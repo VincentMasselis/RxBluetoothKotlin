@@ -1,14 +1,24 @@
 package com.vincentmasselis.rxbluetoothkotlin.internal
 
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
 import com.vincentmasselis.rxbluetoothkotlin.BluetoothTimeout
-import io.reactivex.Completable
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected
+import com.vincentmasselis.rxbluetoothkotlin.livingConnection
 import io.reactivex.Maybe
+import io.reactivex.Observable
 import io.reactivex.Single
+import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.functions.Function
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
-internal fun <R> EnqueueSingle(semaphore: Semaphore, disconnectedCompl: Completable, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
+// ------------------------------ I/O Queue
+
+private val BluetoothGatt.semaphore: Semaphore by SynchronizedFieldProperty { Semaphore(1) }
+
+internal fun <R> BluetoothGatt.enqueue(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
     val downStreamDisp = CompositeDisposable()
 
     downstream.setDisposable(downStreamDisp)
@@ -21,20 +31,28 @@ internal fun <R> EnqueueSingle(semaphore: Semaphore, disconnectedCompl: Completa
             return@Thread
         }
 
-        Maybe
-            .ambArray<R>(
-                disconnectedCompl.toMaybe(),
+        Observable
+            .defer { livingConnection(exception) }
+            .observeOn(AndroidSchedulers.mainThread())
+            .flatMapSingle {
                 sourceSingle()
                     // Value is set to 1 minute because some devices take a long time to detect
                     // when the connection is lost. For example, we saw up to 16 seconds on a
                     // Nexus 4 between the last call to write and the moment when the system
                     // fallback the disconnection.
                     .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
-                    .toMaybe()
-            )
+            }
+            .onErrorResumeNext(Function {
+                if (it is ExceptedDisconnectionException)
+                    Observable.empty()
+                else
+                    Observable.error(it)
+            })
+            .firstElement()
             .doAfterTerminate { semaphore.release() }
             .subscribe({ downstream.onSuccess(it) },
                 { downstream.tryOnError(it) },
                 { downstream.onComplete() })
+
     }.start()
 }

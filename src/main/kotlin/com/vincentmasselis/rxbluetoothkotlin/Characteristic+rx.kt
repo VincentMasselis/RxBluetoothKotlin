@@ -7,11 +7,9 @@ import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
-import io.reactivex.BackpressureStrategy
-import io.reactivex.Flowable
-import io.reactivex.Maybe
-import io.reactivex.Single
-import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.*
+import io.reactivex.Observable
+import io.reactivex.functions.Function
 import java.util.*
 
 /**
@@ -22,9 +20,9 @@ import java.util.*
  * @return onError if an error has occurred while reading
  */
 fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray> =
-    EnqueueSingle(semaphore, assertConnected { device, reason -> CharacteristicReadDeviceDisconnected(device, reason, characteristic.service, characteristic) }) {
-        Single
-            .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
+    enqueue({ device, reason -> CharacteristicReadDeviceDisconnected(device, reason, characteristic.service, characteristic) }
+        , {
+            Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
                 downStream.setDisposable(characteristicReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                 logger?.v(TAG, "readCharacteristic ${characteristic.uuid}")
                 if (readCharacteristic(characteristic).not())
@@ -41,8 +39,7 @@ fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<Byt
                         )
                     )
             }
-            .subscribeOn(AndroidSchedulers.mainThread())
-    }
+        })
         .flatMap { (readCharacteristic, status) ->
             if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(CharacteristicReadingFailed(status, device, readCharacteristic.service, readCharacteristic))
             else Maybe.just(readCharacteristic.value)
@@ -56,9 +53,9 @@ fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<Byt
  * @return onError if an error has occurred while writing
  */
 fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic> =
-    EnqueueSingle(semaphore, assertConnected { device, reason -> CharacteristicWriteDeviceDisconnected(device, reason, characteristic.service, characteristic, value) }) {
-        Single
-            .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
+    enqueue({ device, reason -> CharacteristicWriteDeviceDisconnected(device, reason, characteristic.service, characteristic, value) }
+        , {
+            Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
                 downStream.setDisposable(characteristicWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                 logger?.v(TAG, "writeCharacteristic ${characteristic.uuid} with value ${value.toHexString()}")
                 characteristic.value = value
@@ -77,8 +74,7 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
                         )
                     )
             }
-            .subscribeOn(AndroidSchedulers.mainThread())
-    }
+        })
         .flatMap { (wroteCharacteristic, status) ->
             if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(CharacteristicWriteFailed(status, device, wroteCharacteristic.service, wroteCharacteristic, value))
             else Maybe.just(wroteCharacteristic)
@@ -149,14 +145,17 @@ fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): 
     Flowable.defer { characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER) }
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
-        .takeUntil(assertConnected { device, reason ->
-            CharacteristicChangedDeviceDisconnected(
-                device,
-                reason,
-                characteristic.service,
-                characteristic
-            )
-        }.andThen(Flowable.just(Unit)))
+        .takeUntil(
+            livingConnection({ device, reason -> ListenChangesDeviceDisconnected(device, reason, characteristic.service, characteristic) })
+                .onErrorResumeNext(Function {
+                    if (it is ExceptedDisconnectionException)
+                        Observable.empty()
+                    else
+                        Observable.error(it)
+                })
+                .ignoreElements()
+                .andThen(Flowable.just(Unit))
+        )
 
 fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
     Maybe.defer {
