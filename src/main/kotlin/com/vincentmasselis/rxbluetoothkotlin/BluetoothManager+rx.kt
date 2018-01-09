@@ -128,7 +128,7 @@ fun BluetoothManager.rxScan(
                         .subscribeOn(Schedulers.computation())
                         .subscribe({ mScannerId ->
                             logger?.v(TAG, "rxScan(), system mScannerId for this scan : $mScannerId")
-                            if (mScannerId == -2)
+                            if (mScannerId == -2) //Value fetched from BluetoothLeScanner$BleScanCallbackWrapper.mScannerId. If you check the API27 sources, you will see a -2 in this field when the exception SCAN_FAILED_SCANNING_TOO_FREQUENTLY is fired.
                                 downStream.tryOnError(ScanFailedException(6))
                         }, {
                             logger?.w(
@@ -141,6 +141,7 @@ fun BluetoothManager.rxScan(
 
                 downStream.setCancellable {
                     disposables.dispose()
+                    logger?.v(TAG, "rxScan(), stopScan()")
                     scanner.stopScan(callback)
                 }
             }, BackpressureStrategy.BUFFER)
