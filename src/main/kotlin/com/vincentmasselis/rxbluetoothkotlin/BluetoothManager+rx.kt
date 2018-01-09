@@ -1,6 +1,7 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -9,31 +10,45 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
+import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES.O_MR1
 import android.support.v4.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
-import io.reactivex.BackpressureStrategy
-import io.reactivex.Completable
-import io.reactivex.Flowable
-import io.reactivex.Observable
+import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 
 
-fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null, flushEvery: Pair<Long, TimeUnit>? = null): Flowable<ScanResult> =
+fun BluetoothManager.rxScan(
+    context: Context,
+    scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,
+    flushEvery: Pair<Long, TimeUnit>? = null,
+    logger: Logger? = null
+): Flowable<ScanResult> =
     Completable
         .defer {
             when {
-                adapter == null -> return@defer Completable.error(DeviceDoesNotSupportBluetooth())
-                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> return@defer Completable.error(
-                    NeedLocationPermission()
-                )
-                adapter.isEnabled.not() -> return@defer Completable.error(BluetoothIsTurnedOff())
+                adapter == null -> {
+                    logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
+                    return@defer Completable.error(DeviceDoesNotSupportBluetooth())
+                }
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
+                    logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
+                    return@defer Completable.error(NeedLocationPermission())
+                }
+                adapter.isEnabled.not() -> {
+                    logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
+                    return@defer Completable.error(BluetoothIsTurnedOff())
+                }
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
                     val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
-                    if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not())
+                    if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()) {
+                        logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
                         return@defer Completable.error(LocationServiceDisabled())
+                    }
                 }
             }
 
@@ -48,11 +63,11 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                     }
 
                     override fun onScanFailed(errorCode: Int) {
-                        downStream.tryOnError(ScanFailedException(errorCode))
+                        val error = ScanFailedException(errorCode)
+                        logger?.v(TAG, "rxScan(), error ScanFailedException : $error")
+                        downStream.tryOnError(error)
                     }
                 }
-                val scanner = BluetoothLeScannerCompat.getScanner()
-
 
                 val disposables = CompositeDisposable()
 
@@ -67,6 +82,8 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                     }
                     .let { disposables.add(it) }
 
+                val scanner = BluetoothLeScannerCompat.getScanner()
+
                 flushEvery?.run {
                     Observable
                         .interval(flushEvery.first, flushEvery.second, AndroidSchedulers.mainThread())
@@ -74,8 +91,53 @@ fun BluetoothManager.rxScan(context: Context, scanArgs: Pair<List<ScanFilter>, S
                         .let { disposables.add(it) }
                 }
 
-                if (scanArgs != null) scanner.startScan(scanArgs.first, scanArgs.second, callback)
-                else scanner.startScan(callback)
+                if (scanArgs != null) {
+                    logger?.v(TAG, "rxScan(), startScan() with scanArgs.first : ${scanArgs.first} and scanArgs.second : ${scanArgs.second}")
+                    scanner.startScan(scanArgs.first, scanArgs.second, callback)
+                } else {
+                    logger?.v(TAG, "rxScan(), startScan() without scanArgs")
+                    scanner.startScan(callback)
+                }
+
+                @SuppressLint("NewApi")
+                if (SDK_INT >= O_MR1) {
+                    Single
+                        .fromCallable {
+                            //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
+                            val realCallback = scanner.javaClass.superclass.getDeclaredField("mCallbacks")
+                                .apply { isAccessible = true }
+                                .get(scanner)
+                                .let { it as? Map<*, *> }
+                                ?.get(callback)
+                            val systemScanner = adapter.bluetoothLeScanner
+                            systemScanner.javaClass.getDeclaredField("mLeScanClients")
+                                .apply { isAccessible = true }
+                                .get(systemScanner)
+                                .let { it as? Map<*, *> }
+                                ?.get(realCallback)
+                                ?.let { bluetoothLeScanner ->
+                                    bluetoothLeScanner.javaClass.getDeclaredField("mScannerId")
+                                        .apply { isAccessible = true }
+                                        .get(bluetoothLeScanner)
+                                }
+                                ?.run { this as? Int }
+                                ?.let { mScannerId ->
+                                    return@fromCallable mScannerId
+                                }
+                        }
+                        .subscribeOn(Schedulers.computation())
+                        .subscribe({ mScannerId ->
+                            logger?.v(TAG, "rxScan(), system mScannerId for this scan : $mScannerId")
+                            if (mScannerId == -2)
+                                downStream.tryOnError(ScanFailedException(6))
+                        }, {
+                            logger?.w(
+                                TAG,
+                                "rxScan() is unable to compute system's mScannerId for this scan, it has no effect on the execution of rxScan() but it can leads to bugs from the Android SDK API 27. More information here : https://issuetracker.google.com/issues/71736547",
+                                it
+                            )
+                        })
+                }
 
                 downStream.setCancellable {
                     disposables.dispose()

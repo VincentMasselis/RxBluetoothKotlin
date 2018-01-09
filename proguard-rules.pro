@@ -15,3 +15,8 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+#Required by BluetoothManager+rx
+-keepclassmembers class no.nordicsemi.android.support.v18.scanner.BluetoothLeScannerImplLollipop {
+    private final java.util.Map mCallbacks;
+}
