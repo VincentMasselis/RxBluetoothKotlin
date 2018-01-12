@@ -1,9 +1,6 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothGattService
+import android.bluetooth.*
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeCharacteristicWrite
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.CharacteristicWriteDeviceDisconnected
 import java.util.*
@@ -111,9 +108,14 @@ class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UU
  * Top error corresponding to a device disconnection. Each I/O method like
  * [android.bluetooth.BluetoothGatt.write] have an specific implementation of
  * [DeviceDisconnected], in this case it's [CharacteristicWriteDeviceDisconnected].
+ *
  * The [reason] field is filled with an [Int] provided by the Android framework. Android sources are
  * undocumented but [reason] seems to refers to theses consts :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
+ *
+ * /!\ IMPORTANT : It can returns a -1 [reason] which is not documented in the previous URL. If
+ * this value is fired, that means the [BluetoothGattCallback] say the device is connected while
+ * [android.bluetooth.BluetoothManager.getConnectedDevices] doesn't contain the device.
  */
 sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : Throwable() {
     override fun toString(): String = "DeviceDisconnected(device=$device, reason=$reason)"
@@ -122,8 +124,8 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
      * Fired when device disconnect. Unlike the other sealed classes, this [Throwable] doesn't
      * provides the bluetooth operation which failed.
      */
-    class DeviceDisconnection(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
-        override fun toString(): String = "DeviceDisconnection() ${super.toString()}"
+    class SimpleDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+        override fun toString(): String = "SimpleDeviceDisconnected() ${super.toString()}"
     }
 
     /**

@@ -21,14 +21,18 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.functions.Function
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
-import java.util.concurrent.Semaphore
 
 internal const val TAG = "RxBluetoothKotlin"
 
 /**
  * Initialize a connection and returns immediately an instance of [BluetoothGatt]. It doesn't wait
- * for the connection to be established to emit a [BluetoothGatt] instance, your have to listen the
- * complete event from the [Observable] returned by [rxListenConnection] method.
+ * for the connection to be established to emit a [BluetoothGatt] instance. To do this you have to
+ * listen the [io.reactivex.MaybeObserver.onSuccess] event from the [Maybe] returned by
+ * [rxWhenConnectionIsReady] method.
+ *
+ * It emit a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
+ *
+ * It can throw [NeedLocationPermission], [BluetoothIsTurnedOff] and [LocalDeviceDoesNotSupportBluetooth]
  */
 fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logger: Logger? = null): Single<BluetoothGatt> =
     Single
@@ -54,7 +58,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                 override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                     gatt.logger?.v(TAG, "onConnectionStateChange with status $status and newState $newState")
                     if (newState == BluetoothProfile.STATE_DISCONNECTED) gatt.close()
-                    gatt._connectionState.onNext(newState to status)
+                    gatt.connectionStateSubject.onNext(newState to status)
                 }
 
                 override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
@@ -127,6 +131,111 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
         }
         .subscribeOn(AndroidSchedulers.mainThread())
 
+
+// ------------------------------ Additional properties
+
+private var BluetoothGatt.context: Context? by NullableFieldProperty { null }
+private val BluetoothGatt.bluetoothManager: BluetoothManager by SynchronizedFieldProperty { context!!.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
+
+// ------------------------------ Logging
+
+internal var BluetoothGatt.logger: Logger? by NullableFieldProperty { null }
+
+// ------------------------------ Callbacks
+
+        /**
+         * Represents values that matches [BluetoothProfile.STATE_DISCONNECTED],
+         * [BluetoothProfile.STATE_CONNECTING], [BluetoothProfile.STATE_CONNECTED]
+         * or [BluetoothProfile.STATE_DISCONNECTING]
+         */
+typealias NewState = Int
+
+        /**
+         * The second [Int] is not documented by Google and can contains different
+         * values between manufacturers. Generally, It match theses values :
+         * https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h
+         */
+typealias Reason = Int
+
+typealias ConnectionState = Pair<NewState, Reason>
+
+private val BluetoothGatt.connectionStateSubject: BehaviorSubject<ConnectionState> by SynchronizedFieldProperty { BehaviorSubject.create() }
+val BluetoothGatt.rxConnectionState: Observable<ConnectionState> by SynchronizedFieldProperty { connectionStateSubject.hide() }
+private val BluetoothGatt.readRemoteRssiSubject: PublishSubject<Pair<Int, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxReadRemoteRssi: Observable<Pair<Int, Reason>> by SynchronizedFieldProperty { readRemoteRssiSubject.hide() }
+private val BluetoothGatt.servicesDiscoveredSubject: PublishSubject<Reason> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxServicesDiscovered: Observable<Reason> by SynchronizedFieldProperty { servicesDiscoveredSubject.hide() }
+private val BluetoothGatt.mtuChangedSubject: PublishSubject<Pair<Int, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxMtuChanged: Observable<Pair<Int, Reason>> by SynchronizedFieldProperty { mtuChangedSubject.hide() }
+
+internal val BluetoothGatt.characteristicReadSubject: PublishSubject<Pair<BluetoothGattCharacteristic, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Reason>> by SynchronizedFieldProperty { characteristicReadSubject.hide() }
+internal val BluetoothGatt.characteristicWriteSubject: PublishSubject<Pair<BluetoothGattCharacteristic, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Reason>> by SynchronizedFieldProperty { characteristicWriteSubject.hide() }
+internal val BluetoothGatt.characteristicChangedSubject: PublishSubject<BluetoothGattCharacteristic> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxCharacteristicChanged: Observable<BluetoothGattCharacteristic> by SynchronizedFieldProperty { characteristicChangedSubject.hide() }
+internal val BluetoothGatt.descriptorReadSubject: PublishSubject<Pair<BluetoothGattDescriptor, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Reason>> by SynchronizedFieldProperty { descriptorReadSubject.hide() }
+internal val BluetoothGatt.descriptorWriteSubject: PublishSubject<Pair<BluetoothGattDescriptor, Reason>> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Reason>> by SynchronizedFieldProperty { descriptorWriteSubject.hide() }
+internal val BluetoothGatt.reliableWriteCompletedSubject: PublishSubject<Reason> by SynchronizedFieldProperty { PublishSubject.create() }
+val BluetoothGatt.rxReliableWriteCompleted: Observable<Reason> by SynchronizedFieldProperty { reliableWriteCompletedSubject.hide() }
+
+/**
+ * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [BluetoothGatt] can handle I/O operations.
+ *
+ * It call [exceptionConverter] when a disconnection an unexpected exception is fired and throws the result in the [Observable].
+ * In can throw [ExceptedDisconnectionException] and [BluetoothIsTurnedOff].
+ *
+ * It never completes.
+ */
+internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected): Observable<Unit> = Observable
+    .create<Unit> { downStream ->
+        downStream.setDisposable(
+            connectionStateSubject
+                .subscribe { (newState, reason) ->
+                    if (newState == BluetoothProfile.STATE_CONNECTED && reason == GATT_SUCCESS) {
+                        //Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
+                        val isDeviceReallyConnected = bluetoothManager
+                            .getConnectedDevices(BluetoothProfile.GATT)
+                            .filter { it.type == BluetoothDevice.DEVICE_TYPE_LE }
+                            .none { it.address == device.address }
+                            .not()
+                        if (isDeviceReallyConnected)
+                            downStream.onNext(Unit)
+                        else
+                            downStream.tryOnError(exceptionConverter(device, -1))
+                    } else if (newState == BluetoothProfile.STATE_DISCONNECTED)
+                        if (reason != GATT_SUCCESS)
+                            downStream.tryOnError(exceptionConverter(device, reason))
+                        else
+                            downStream.tryOnError(ExceptedDisconnectionException())
+                    else if (reason != GATT_SUCCESS)
+                        downStream.tryOnError(exceptionConverter(device, reason))
+                })
+    }
+    .takeUntil(assertBluetoothState().toObservable<Unit>())
+    .apply { checkSubjectsAreCalledByCallbacks() }
+
+/**
+ * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the status code / reason
+ * when a disconnection with the device occurs.
+ *
+ * It emit [Unit] if the device is ready for an I/O operation.
+ *
+ * It can emit [BluetoothIsTurnedOff] exception.
+ *
+ * If the disconnection is excepted (by calling [rxDisconnect] for example), it just completes.
+ */
+fun BluetoothGatt.rxLivingConnection(): Observable<Unit> =
+    livingConnection(::SimpleDeviceDisconnected)
+        .onErrorResumeNext(Function {
+            if (it is ExceptedDisconnectionException)
+                Observable.empty()
+            else
+                Observable.error(it)
+        })
+
 /**
  * This method checks if the current [BluetoothGatt] is an instance created by using [rxGatt] by
  * checking if [BluetoothGatt] contains an instance of [Context] in the property [context], only
@@ -152,134 +261,6 @@ private fun BluetoothGatt.assertBluetoothState(): Completable =
         .filter { it != BluetoothAdapter.STATE_ON }
         .firstOrError()
         .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
-
-/**
- * Returns the same values than [rxConnectionState] but it completes when [BluetoothProfile.STATE_CONNECTED]
- * is fired. Otherwise it throws [GattDeviceDisconnected] if status is different from [GATT_SUCCESS]
- * and if [BluetoothProfile.STATE_DISCONNECTING] or [BluetoothProfile.STATE_DISCONNECTED]
- */
-fun BluetoothGatt.rxListenConnection(): Observable<Pair<Int, Int>> = Observable
-    .create<Pair<Int, Int>> { downStream ->
-        downStream.setDisposable(
-            _connectionState
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { (newState, status) ->
-                    if (newState == BluetoothProfile.STATE_CONNECTING)
-                        downStream.onNext(newState to status)
-                    else if (newState == BluetoothProfile.STATE_CONNECTED) {
-                        downStream.onNext(newState to status)
-                        downStream.onComplete()
-                    } else if (newState == BluetoothProfile.STATE_DISCONNECTING || newState == BluetoothProfile.STATE_DISCONNECTED) {
-                        downStream.onNext(newState to status)
-                        downStream.tryOnError(GattDeviceDisconnected(device, status))
-                    }
-
-                    if (status != GATT_SUCCESS)
-                        downStream.tryOnError(GattDeviceDisconnected(device, status))
-                }
-        )
-    }
-    .takeUntil(assertBluetoothState().toObservable<Unit>())
-    .apply { checkSubjectsAreCalledByCallbacks() }
-
-/**
- * Initialize a disconnection and completes when it's done. It can emit [BluetoothIsTurnedOff] or
- * [DeviceDisconnection] if the device was disconnect with an error.
- */
-fun BluetoothGatt.rxDisconnect(): Completable = Completable
-    .create { downStream ->
-        downStream.setDisposable(
-            _connectionState
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { (newState, status) ->
-                    if (newState == BluetoothProfile.STATE_CONNECTED || newState == BluetoothProfile.STATE_CONNECTING)
-                        disconnect()
-                    else if (newState == BluetoothProfile.STATE_DISCONNECTED)
-                        if (status == GATT_SUCCESS)
-                            downStream.onComplete()
-                        else
-                            downStream.tryOnError(DeviceDisconnection(device, status))
-                })
-    }
-    .ambWith(assertBluetoothState())
-    .apply { checkSubjectsAreCalledByCallbacks() }
-    .subscribeOn(AndroidSchedulers.mainThread())
-
-/**
- * Returns a completable that emit a [DeviceDisconnection] which contains the status code / reason
- * when a disconnection with the device occurs. If the disconnection is excepted (by calling
- * [rxDisconnect] for example), it just completes.
- */
-fun BluetoothGatt.rxListenDisconnection(): Completable =
-    livingConnection(::DeviceDisconnection)
-        .onErrorResumeNext(Function {
-            if (it is ExceptedDisconnectionException)
-                Observable.empty()
-            else
-                Observable.error(it)
-        })
-        .ignoreElements()
-
-// ------------------------------ Additional properties
-
-private var BluetoothGatt.context: Context? by NullableFieldProperty { null }
-
-// ------------------------------ Logging
-
-internal var BluetoothGatt.logger: Logger? by NullableFieldProperty { null }
-
-// ------------------------------ Callbacks
-
-private var BluetoothGatt.readRemoteRssiSubject: PublishSubject<Pair<Int, Int>> by FieldProperty { PublishSubject.create() }
-private var BluetoothGatt.servicesDiscoveredSubject: PublishSubject<Int> by FieldProperty { PublishSubject.create() }
-private var BluetoothGatt.mtuChangedSubject: PublishSubject<Pair<Int, Int>> by FieldProperty { PublishSubject.create() }
-
-internal var BluetoothGatt.characteristicReadSubject: PublishSubject<Pair<BluetoothGattCharacteristic, Int>> by FieldProperty { PublishSubject.create() }
-internal var BluetoothGatt.characteristicWriteSubject: PublishSubject<Pair<BluetoothGattCharacteristic, Int>> by FieldProperty { PublishSubject.create() }
-internal var BluetoothGatt.characteristicChangedSubject: PublishSubject<BluetoothGattCharacteristic> by FieldProperty { PublishSubject.create() }
-internal var BluetoothGatt.descriptorReadSubject: PublishSubject<Pair<BluetoothGattDescriptor, Int>> by FieldProperty { PublishSubject.create() }
-internal var BluetoothGatt.descriptorWriteSubject: PublishSubject<Pair<BluetoothGattDescriptor, Int>> by FieldProperty { PublishSubject.create() }
-internal var BluetoothGatt.reliableWriteCompletedSubject: PublishSubject<Int> by FieldProperty { PublishSubject.create() }
-
-
-private val BluetoothGatt._connectionState: BehaviorSubject<Pair<Int, Int>> by SynchronizedFieldProperty { BehaviorSubject.create() }
-
-/**
- * The first [Int] of the [Pair] represents the new connection state that matches
- * [BluetoothProfile.STATE_DISCONNECTED], [BluetoothProfile.STATE_CONNECTING]
- * [BluetoothProfile.STATE_CONNECTED] or [BluetoothProfile.STATE_DISCONNECTING] values.
- * The second [Int] is not documented by Google and can contains different values between
- * manufacturers. Generally, It match theses values https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h
- *
- * Most of the time, you don't have to use this property, consider using [rxListenConnection] or
- * [rxListenDisconnection] instead.
- */
-val BluetoothGatt.rxConnectionState: Observable<Pair<Int, Int>> get() = _connectionState.hide()
-
-/**
- * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [BluetoothGatt] can handle I/O operations.
- * It never completes.
- * It emit an error when the connection is terminated unexpectedly or emit [ExceptedDisconnectionException] if the connection is terminated by the user.
- */
-internal fun BluetoothGatt.livingConnection(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected): Observable<Unit> = Observable
-    .create<Unit> { downStream ->
-        downStream.setDisposable(
-            _connectionState
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe { (newState, reason) ->
-                    when {
-                        newState == BluetoothProfile.STATE_CONNECTED -> downStream.onNext(Unit)
-                        reason == GATT_SUCCESS -> downStream.tryOnError(ExceptedDisconnectionException())
-                        else -> downStream.tryOnError(exception(device, reason))
-                    }
-                })
-    }
-    .takeUntil(assertBluetoothState().toObservable<Unit>())
-    .apply { checkSubjectsAreCalledByCallbacks() }
-
-// ------------------------------ I/O Queue
-
-internal val BluetoothGatt.semaphore: Semaphore by SynchronizedFieldProperty { Semaphore(1) }
 
 // ------------------------------ RSSI
 
