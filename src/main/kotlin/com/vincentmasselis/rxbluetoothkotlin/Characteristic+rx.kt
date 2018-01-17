@@ -1,11 +1,13 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
-import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.CharacteristicReadingFailed
+import com.vincentmasselis.rxbluetoothkotlin.IOFailed.CharacteristicWriteFailed
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.Observable
@@ -15,12 +17,20 @@ import java.util.*
 /**
  * Reactive way to read a value from a [characteristic].
  *
- * @return onSuccess with the value [ByteArray] when the [characteristic] is correctly read.
- * @return onComplete when the [BluetoothGatt] connection is closed by the user
- * @return onError if an error has occurred while reading
+ * @return
+ * onSuccess with the value [ByteArray] when the [characteristic] is correctly read.
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while reading. It can emit [CharacteristicReadDeviceDisconnected], [CannotInitializeCharacteristicReading], [CharacteristicReadingFailed] and
+ * [BluetoothIsTurnedOff]
+ *
+ * @see BluetoothGattCharacteristic
+ * @see BluetoothGatt.readCharacteristic
+ * @see BluetoothGattCallback.onCharacteristicRead
  */
 fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray> =
-    enqueue({ device, reason -> CharacteristicReadDeviceDisconnected(device, reason, characteristic.service, characteristic) }
+    enqueue({ device, status -> CharacteristicReadDeviceDisconnected(device, status, characteristic.service, characteristic) }
         , {
             Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
                 downStream.setDisposable(characteristicReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -48,12 +58,20 @@ fun BluetoothGatt.rxRead(characteristic: BluetoothGattCharacteristic): Maybe<Byt
 /**
  * Reactive way to write a [value] into a [characteristic].
  *
- * @return onSuccess with the written [characteristic] and when [value] is correctly wrote
- * @return onComplete when the [BluetoothGatt] connection is closed by the user
- * @return onError if an error has occurred while writing
+ * @return
+ * onSuccess with the written [BluetoothGattCharacteristic] when [value] is correctly wrote
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while writing. It can emit [CharacteristicWriteDeviceDisconnected], [CannotInitializeCharacteristicWrite], [CharacteristicWriteFailed] and
+ * [BluetoothIsTurnedOff]
+ *
+ * @see BluetoothGattCharacteristic
+ * @see BluetoothGatt.writeCharacteristic
+ * @see BluetoothGattCallback.onCharacteristicWrite
  */
 fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic> =
-    enqueue({ device, reason -> CharacteristicWriteDeviceDisconnected(device, reason, characteristic.service, characteristic, value) }
+    enqueue({ device, status -> CharacteristicWriteDeviceDisconnected(device, status, characteristic.service, characteristic, value) }
         , {
             Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
                 downStream.setDisposable(characteristicWriteSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -81,9 +99,7 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
         }
 
 /**
- * Because enabling notification require an descriptor write, the [Maybe] returned can fire errors
- * from [BluetoothGattDescriptor.rxWrite] method like [DescriptorWriteDeviceDisconnected],
- * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed].
+ * Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from [BluetoothGattDescriptor.rxWrite] method.
  *
  * Set [checkIfAlreadyEnabled] to true to avoid enabling twice the same notification.
  */
@@ -99,9 +115,7 @@ fun BluetoothGatt.rxEnableNotification(
     )
 
 /**
- * Because disabling notification require an descriptor write, the [Maybe] returned can fire errors
- * from [BluetoothGattDescriptor.rxWrite] method like [DescriptorWriteDeviceDisconnected],
- * [CannotInitializeDescriptorWrite] or [DescriptorWriteFailed].
+ * Because disabling notification require an descriptor write, the [Maybe] returned can fire errors from [BluetoothGattDescriptor.rxWrite] method.
  *
  * Set [checkIfAlreadyDisabled] to true to avoid disabling twice the same notification.
  */
@@ -141,12 +155,26 @@ private fun BluetoothGatt.rxChangeNotification(
         }
     }
 
+/**
+ * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [rxEnableNotification] before listening this method.
+ *
+ * @return
+ * onNext with the [ByteArray] value from the [characteristic]
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while writing. It can emit [BluetoothIsTurnedOff]
+ * and [ListenChangesDeviceDisconnected].
+ *
+ * @see rxEnableNotification
+ * @see BluetoothGattCallback.onCharacteristicChanged
+ */
 fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): Flowable<ByteArray> =
     Flowable.defer { characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER) }
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
         .takeUntil(
-            livingConnection({ device, reason -> ListenChangesDeviceDisconnected(device, reason, characteristic.service, characteristic) })
+            livingConnection({ device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) })
                 .onErrorResumeNext(Function {
                     if (it is ExceptedDisconnectionException)
                         Observable.empty()
@@ -156,25 +184,3 @@ fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): 
                 .ignoreElements()
                 .andThen(Flowable.just(Unit))
         )
-
-fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
-    Maybe.defer {
-        if (services.isEmpty())
-            Maybe.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
-        else {
-            services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Maybe.just(it) } }
-            Maybe.empty()
-        }
-    }
-
-fun BluetoothGatt.rxCharacteristic(uuid: UUID): Single<BluetoothGattCharacteristic> =
-    Single.defer {
-        if (services.isEmpty())
-            Single.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
-        else {
-            services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Single.just(it) } }
-            Single.error<BluetoothGattCharacteristic>(CharacteristicNotFound(device, uuid))
-        }
-    }
-
-fun BluetoothGattCharacteristic.hasIndication() = properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0

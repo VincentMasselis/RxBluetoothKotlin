@@ -1,6 +1,7 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattDescriptor
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeDescriptorReading
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeDescriptorWrite
@@ -16,12 +17,20 @@ import java.util.*
 /**
  * Reactive way to read a value from a [descriptor].
  *
- * @return onSuccess with the value [ByteArray] when the [descriptor] is correctly read.
- * @return onComplete when the [BluetoothGatt] connection is closed by the user
- * @return onError if an error has occurred while reading
+ * @return
+ * onSuccess with the value [ByteArray] when the [descriptor] is correctly read.
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while reading. It can emit [DescriptorReadDeviceDisconnected], [CannotInitializeDescriptorReading], [DescriptorReadingFailed] and
+ * [BluetoothIsTurnedOff]
+ *
+ * @see BluetoothGattDescriptor
+ * @see BluetoothGatt.readDescriptor
+ * @see BluetoothGattCallback.onDescriptorRead
  */
 fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> =
-    enqueue({ device, reason -> DescriptorReadDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor) }
+    enqueue({ device, status -> DescriptorReadDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor) }
         , {
             Single.create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
                 downStream.setDisposable(descriptorReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -56,15 +65,21 @@ fun BluetoothGatt.rxRead(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> 
 
 /**
  * Reactive way to write a [value] into a [descriptor].
- * Set [checkIfAlreadyWritten] to true to avoid this write operation if [value] is equals to the
- * current [BluetoothGattDescriptor.getValue].
  *
- * @return onSuccess with the written [descriptor] and when [value] is correctly wrote
- * @return onComplete when the [BluetoothGatt] connection is closed by the user
- * @return onError if an error has occurred while writing
+ * @return
+ * onSuccess with the written [BluetoothGattDescriptor] when [value] is correctly wrote
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while writing. It can emit [DescriptorWriteDeviceDisconnected], [CannotInitializeDescriptorWrite], [DescriptorWriteFailed] and
+ * [BluetoothIsTurnedOff]
+ *
+ * @see BluetoothGattDescriptor
+ * @see BluetoothGatt.writeDescriptor
+ * @see BluetoothGattCallback.onDescriptorWrite
  */
 fun BluetoothGatt.rxWrite(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor> =
-    enqueue({ device, reason -> DescriptorWriteDeviceDisconnected(device, reason, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }
+    enqueue({ device, status -> DescriptorWriteDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }
         , {
             Single.create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
                 if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {

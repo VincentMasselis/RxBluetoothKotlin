@@ -21,7 +21,31 @@ import io.reactivex.schedulers.Schedulers
 import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 
-
+/**
+ * Reactive way to get [ScanResult] while scanning.
+ *
+ * [context] is used to listen bluetooth changes and check is the app has the required permission.
+ *
+ * If [scanArgs] param is not null, it'll be used for the method [android.bluetooth.le.BluetoothLeScanner.startScan]
+ *
+ * If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay
+ *
+ * Warning ! It never completes, use a [Flowable.takeUntil] + [Flowable.timer] operator to stop scanning after a delay.
+ *
+ * @return
+ * onNext with [ScanResult]
+ *
+ * onComplete is never called. You have to manually unsubscribe to stop the scan.
+ *
+ * onError if an error has occurred. It can emit [DeviceDoesNotSupportBluetooth], [NeedLocationPermission], [BluetoothIsTurnedOff], [LocationServiceDisabled] and
+ * [ScanFailedException]
+ *
+ * @see android.bluetooth.le.ScanResult
+ * @see android.bluetooth.le.ScanFilter
+ * @see android.bluetooth.le.ScanSettings
+ * @see [android.bluetooth.le.BluetoothLeScanner.startScan]
+ * @see [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults]
+ */
 fun BluetoothManager.rxScan(
     context: Context,
     scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,

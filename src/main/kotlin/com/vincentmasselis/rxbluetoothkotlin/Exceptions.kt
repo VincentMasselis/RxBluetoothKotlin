@@ -46,11 +46,11 @@ class LocationServiceDisabled : Throwable() {
 
 /**
  * Fired if an error append when scanning.
- * The [reason] field is filled with an [Int] provided by the Android framework, it could be one of
+ * The [status] field is filled with an [Int] provided by the Android framework, it could be one of
  * the [android.bluetooth.le.ScanCallback.SCAN_FAILED_*] const
  */
-class ScanFailedException(val reason: Int) : Throwable() {
-    override fun toString(): String = "ScanFailedException(reason=$reason)"
+class ScanFailedException(val status: Int) : Throwable() {
+    override fun toString(): String = "ScanFailedException(status=$status)"
 }
 
 
@@ -109,58 +109,73 @@ class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UU
  * [android.bluetooth.BluetoothGatt.write] have an specific implementation of
  * [DeviceDisconnected], in this case it's [CharacteristicWriteDeviceDisconnected].
  *
- * The [reason] field is filled with an [Int] provided by the Android framework. Android sources are
- * undocumented but [reason] seems to refers to theses consts :
+ * The [status] field is filled with an [Int] provided by the Android framework. Android sources are
+ * undocumented but [status] seems to refers to theses consts :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
  *
- * /!\ IMPORTANT : It can returns a -1 [reason] which is not documented in the previous URL. If
+ * /!\ IMPORTANT : It can returns a -1 [status] which is not documented in the previous URL. If
  * this value is fired, that means the [BluetoothGattCallback] say the device is connected while
  * [android.bluetooth.BluetoothManager.getConnectedDevices] doesn't contain the device.
  */
-sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : Throwable() {
-    override fun toString(): String = "DeviceDisconnected(device=$device, reason=$reason)"
+sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : Throwable() {
+    override fun toString(): String = "DeviceDisconnected(device=$device, status=$status)"
 
     /**
      * Fired when device disconnect. Unlike the other sealed classes, this [Throwable] doesn't
-     * provides the bluetooth operation which failed.
+     * provides the bluetooth operation which has failed.
      */
-    class SimpleDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+    class SimpleDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "SimpleDeviceDisconnected() ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while fetching RSSI
      */
-    class RssiDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+    class RssiDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "RssiDeviceDisconnected() ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while discovering services
      */
-    class DiscoverServicesDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+    class DiscoverServicesDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "DiscoverServicesDeviceDisconnected() ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while requesting MTU
      */
-    class MtuDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+    class MtuDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "MtuDeviceDisconnected() ${super.toString()}"
+    }
+
+    /**
+     * Fired when device disconnect while reading phy
+     */
+    class ReadPhyDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
+        override fun toString(): String = "ReadPhyDeviceDisconnected() ${super.toString()}"
+    }
+
+    /**
+     * Fired when device disconnect while reading phy
+     */
+    class SetPreferredPhyDeviceDisconnected(val connectionPhy: ConnectionPhy, val phyOptions: Int, bluetoothDevice: BluetoothDevice, status: Int) :
+        DeviceDisconnected(bluetoothDevice, status) {
+        override fun toString(): String = "SetPreferredPhyDeviceDisconnected(connectionPhy=$connectionPhy, phyOptions=$phyOptions) ${super.toString()}"
     }
 
     /**
      * Exception fired when the current connectLegacy connection is lost
      */
-    class GattDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int) : DeviceDisconnected(bluetoothDevice, reason) {
+    class GattDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "GattDeviceDisconnected() ${super.toString()}"
     }
 
     /**
      * Fired when device disconnect while reading characteristic
      */
-    class CharacteristicReadDeviceDisconnected(bluetoothDevice: BluetoothDevice, reason: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
-        DeviceDisconnected(bluetoothDevice, reason) {
+    class CharacteristicReadDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
+        DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String =
             "CharacteristicReadDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
@@ -170,11 +185,11 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
      */
     class CharacteristicWriteDeviceDisconnected(
         bluetoothDevice: BluetoothDevice,
-        reason: Int,
+        status: Int,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val value: ByteArray
-    ) : DeviceDisconnected(bluetoothDevice, reason) {
+    ) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String =
             "CharacteristicWriteDeviceDisconnected(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
     }
@@ -184,10 +199,10 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
      */
     class ListenChangesDeviceDisconnected(
         bluetoothDevice: BluetoothDevice,
-        reason: Int,
+        status: Int,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic
-    ) : DeviceDisconnected(bluetoothDevice, reason) {
+    ) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String =
             "ListenChangesDeviceDisconnected(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
@@ -197,11 +212,11 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
      */
     class DescriptorReadDeviceDisconnected(
         device: BluetoothDevice,
-        reason: Int,
+        status: Int,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val descriptor: BluetoothGattDescriptor
-    ) : DeviceDisconnected(device, reason) {
+    ) : DeviceDisconnected(device, status) {
         override fun toString(): String =
             "DescriptorReadDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
     }
@@ -211,12 +226,12 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val reason: Int) : 
      */
     class DescriptorWriteDeviceDisconnected(
         device: BluetoothDevice,
-        reason: Int,
+        status: Int,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val descriptor: BluetoothGattDescriptor,
         val value: ByteArray
-    ) : DeviceDisconnected(device, reason) {
+    ) : DeviceDisconnected(device, status) {
         override fun toString(): String =
             "DescriptorWriteDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
     }
@@ -340,39 +355,53 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
 
 /**
  * Fired when an Read or Write operation fails.
- * The [reason] field is filled with an [Int] provided by the Android framework. Android sources are
- * undocumented but [reason] seems to refers to theses consts :
+ * The [status] field is filled with an [Int] provided by the Android framework. Android sources are
+ * undocumented but [status] seems to refers to theses consts :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
  */
-sealed class IOFailed(val reason: Int, val device: BluetoothDevice) : Throwable() {
-    override fun toString(): String = "IOFailed(reason=$reason, device=$device)"
+sealed class IOFailed(val status: Int, val device: BluetoothDevice) : Throwable() {
+    override fun toString(): String = "IOFailed(status=$status, device=$device)"
 
     /**
      * Fired when RSSI request returns an error
      */
-    class RssiReadingFailed(reason: Int, device: BluetoothDevice) : IOFailed(reason, device) {
+    class RssiReadingFailed(status: Int, device: BluetoothDevice) : IOFailed(status, device) {
         override fun toString(): String = "RssiReadingFailed() ${super.toString()}"
     }
 
     /**
      * Fired when service discovering request returns an error
      */
-    class ServiceDiscoveringFailed(reason: Int, device: BluetoothDevice) : IOFailed(reason, device) {
+    class ServiceDiscoveringFailed(status: Int, device: BluetoothDevice) : IOFailed(status, device) {
         override fun toString(): String = "ServiceDiscoveringFailed() ${super.toString()}"
     }
 
     /**
      * Fired when MTU request returns an error
      */
-    class MtuRequestingFailed(reason: Int, device: BluetoothDevice) : IOFailed(reason, device) {
+    class MtuRequestingFailed(status: Int, device: BluetoothDevice) : IOFailed(status, device) {
         override fun toString(): String = "MtuRequestingFailed() ${super.toString()}"
+    }
+
+    /**
+     * Fired when PHY request returns an error
+     */
+    class PhyReadFailed(val connectionPhy: ConnectionPhy, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
+        override fun toString(): String = "PhyReadFailed(connectionPhy=$connectionPhy) ${super.toString()}"
+    }
+
+    /**
+     * Fired when PHY preferred changes returns an error
+     */
+    class SetPreferredPhyFailed(val connectionPhy: ConnectionPhy, val phyOptions: Int, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
+        override fun toString(): String = "SetPreferredPhyFailed(connectionPhy=$connectionPhy, phyOptions=$phyOptions) ${super.toString()}"
     }
 
     /**
      * Fired when read request returns an error
      */
-    class CharacteristicReadingFailed(reason: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
-        IOFailed(reason, device) {
+    class CharacteristicReadingFailed(status: Int, device: BluetoothDevice, val service: BluetoothGattService, val characteristic: BluetoothGattCharacteristic) :
+        IOFailed(status, device) {
         override fun toString(): String =
             "CharacteristicReadingFailed(service=$service, characteristic=$characteristic) ${super.toString()}"
     }
@@ -381,12 +410,12 @@ sealed class IOFailed(val reason: Int, val device: BluetoothDevice) : Throwable(
      * Fired when write request returns an error
      */
     class CharacteristicWriteFailed(
-        reason: Int,
+        status: Int,
         device: BluetoothDevice,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val value: ByteArray
-    ) : IOFailed(reason, device) {
+    ) : IOFailed(status, device) {
         override fun toString(): String =
             "CharacteristicWriteFailed(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
     }
@@ -395,12 +424,12 @@ sealed class IOFailed(val reason: Int, val device: BluetoothDevice) : Throwable(
      * Fired when read request returns an error
      */
     class DescriptorReadingFailed(
-        reason: Int,
+        status: Int,
         device: BluetoothDevice,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val descriptor: BluetoothGattDescriptor
-    ) : IOFailed(reason, device) {
+    ) : IOFailed(status, device) {
         override fun toString(): String =
             "DescriptorReadingFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor) ${super.toString()}"
     }
@@ -409,13 +438,13 @@ sealed class IOFailed(val reason: Int, val device: BluetoothDevice) : Throwable(
      * Fired when write request returns an error
      */
     class DescriptorWriteFailed(
-        reason: Int,
+        status: Int,
         device: BluetoothDevice,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
         val descriptor: BluetoothGattDescriptor,
         val value: ByteArray
-    ) : IOFailed(reason, device) {
+    ) : IOFailed(status, device) {
         override fun toString(): String =
             "DescriptorWriteFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
     }

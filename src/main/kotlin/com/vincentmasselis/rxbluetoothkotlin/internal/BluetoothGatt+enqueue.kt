@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 
 private val BluetoothGatt.semaphore: Semaphore by SynchronizedFieldProperty { Semaphore(1) }
 
-internal fun <R> BluetoothGatt.enqueue(exception: (device: BluetoothDevice, reason: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
+internal fun <R> BluetoothGatt.enqueue(exception: (device: BluetoothDevice, status: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
     val downStreamDisp = CompositeDisposable()
 
     downstream.setDisposable(downStreamDisp)
