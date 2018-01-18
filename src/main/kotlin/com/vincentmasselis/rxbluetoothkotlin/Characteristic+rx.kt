@@ -9,8 +9,10 @@ import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.CharacteristicReadingFailed
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.CharacteristicWriteFailed
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
-import io.reactivex.*
+import io.reactivex.Flowable
+import io.reactivex.Maybe
 import io.reactivex.Observable
+import io.reactivex.Single
 import io.reactivex.functions.Function
 import java.util.*
 
@@ -170,7 +172,7 @@ private fun BluetoothGatt.rxChangeNotification(
  * @see BluetoothGattCallback.onCharacteristicChanged
  */
 fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): Flowable<ByteArray> =
-    Flowable.defer { characteristicChangedSubject.toFlowable(BackpressureStrategy.BUFFER) }
+    characteristicChangedSubject
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
         .takeUntil(

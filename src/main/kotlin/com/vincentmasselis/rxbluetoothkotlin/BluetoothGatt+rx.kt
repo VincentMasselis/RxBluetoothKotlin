@@ -13,12 +13,10 @@ import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.IOFailed.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
-import io.reactivex.Completable
-import io.reactivex.Maybe
-import io.reactivex.Observable
-import io.reactivex.Single
+import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.functions.Function
+import io.reactivex.processors.PublishProcessor
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 
@@ -204,8 +202,8 @@ internal val BluetoothGatt.characteristicReadSubject: PublishSubject<Pair<Blueto
 val BluetoothGatt.rxCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>> by SynchronizedFieldProperty { characteristicReadSubject.hide() }
 internal val BluetoothGatt.characteristicWriteSubject: PublishSubject<Pair<BluetoothGattCharacteristic, Status>> by SynchronizedFieldProperty { PublishSubject.create() }
 val BluetoothGatt.rxCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>> by SynchronizedFieldProperty { characteristicWriteSubject.hide() }
-internal val BluetoothGatt.characteristicChangedSubject: PublishSubject<BluetoothGattCharacteristic> by SynchronizedFieldProperty { PublishSubject.create() }
-val BluetoothGatt.rxCharacteristicChanged: Observable<BluetoothGattCharacteristic> by SynchronizedFieldProperty { characteristicChangedSubject.hide() }
+internal val BluetoothGatt.characteristicChangedSubject: PublishProcessor<BluetoothGattCharacteristic> by SynchronizedFieldProperty { PublishProcessor.create() }
+val BluetoothGatt.rxCharacteristicChanged: Flowable<BluetoothGattCharacteristic> by SynchronizedFieldProperty { characteristicChangedSubject.hide() }
 internal val BluetoothGatt.descriptorReadSubject: PublishSubject<Pair<BluetoothGattDescriptor, Status>> by SynchronizedFieldProperty { PublishSubject.create() }
 val BluetoothGatt.rxDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>> by SynchronizedFieldProperty { descriptorReadSubject.hide() }
 internal val BluetoothGatt.descriptorWriteSubject: PublishSubject<Pair<BluetoothGattDescriptor, Status>> by SynchronizedFieldProperty { PublishSubject.create() }
