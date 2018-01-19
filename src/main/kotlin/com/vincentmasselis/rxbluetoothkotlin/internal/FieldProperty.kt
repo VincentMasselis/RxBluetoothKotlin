@@ -16,7 +16,7 @@ import kotlin.reflect.KProperty
  * If the delegated property of an [R] instance is accessed but has not been initialized, [initializer] is called to
  * provide the initial value. The default [initializer] throws [IllegalStateException].
  */
-class FieldProperty<R, T : Any>(val initializer: R.() -> T = { throw IllegalStateException("Not initialized.") }) {
+class FieldProperty<in R, T : Any>(private val initializer: R.() -> T = { throw IllegalStateException("Not initialized.") }) {
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T =
@@ -40,7 +40,7 @@ class FieldProperty<R, T : Any>(val initializer: R.() -> T = { throw IllegalStat
  * If the delegated property of an [R] instance is accessed but has not been initialized, [initializer] is called to
  * provide the initial value. The default [initializer] returns `null`.
  */
-class NullableFieldProperty<R, T>(val initializer: R.() -> T? = { null }) {
+class NullableFieldProperty<in R, T>(private val initializer: R.() -> T? = { null }) {
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T? =
@@ -64,7 +64,7 @@ class NullableFieldProperty<R, T>(val initializer: R.() -> T? = { null }) {
  * If the delegated property of an [R] instance is accessed but has not been initialized, [initializer] is called to
  * provide the initial value. The default [initializer] throws [IllegalStateException].
  */
-class SynchronizedFieldProperty<R, T : Any>(val initializer: R.() -> T = { throw IllegalStateException("Not initialized.") }) {
+class SynchronizedFieldProperty<in R, T : Any>(private val initializer: R.() -> T = { throw IllegalStateException("Not initialized.") }) {
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T = synchronized(map) {
@@ -91,7 +91,7 @@ class SynchronizedFieldProperty<R, T : Any>(val initializer: R.() -> T = { throw
  * If the delegated property of an [R] instance is accessed but has not been initialized, [initializer] is called to
  * provide the initial value. The default [initializer] returns `null`.
  */
-class SynchronizedNullableFieldProperty<R, T>(val initializer: R.() -> T? = { null }) {
+class SynchronizedNullableFieldProperty<in R, T>(private val initializer: R.() -> T? = { null }) {
     private val map = WeakIdentityHashMap<R, T>()
 
     operator fun getValue(thisRef: R, property: KProperty<*>): T? = synchronized(map) {
