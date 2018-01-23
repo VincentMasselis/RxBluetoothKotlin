@@ -24,18 +24,21 @@ import java.util.concurrent.TimeUnit
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
- * [context] is used to listen bluetooth changes and check is the app has the required permission.
+ * [context] is used to listen bluetooth changes and check the app has the required permissions.
  *
- * If [scanArgs] param is not null, it'll be used for the method [android.bluetooth.le.BluetoothLeScanner.startScan]
+ * If [scanArgs] param is not null, the method [android.bluetooth.le.BluetoothLeScanner.startScan] will be called.
  *
- * If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay
+ * If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay until the downstream is
+ * disposed.
  *
- * Warning ! It never completes, use a [Flowable.takeUntil] + [Flowable.timer] operator to stop scanning after a delay.
+ * Warning ! It never completes ! It stops his scan only when the downstream is disposed.
+ * For example you can use a [Flowable.takeUntil] + [Flowable.timer] operator to stop scanning after a delay.
+ * Alternatively you can use an [Flowable.firstElement] if you have set a [scanArgs] or you can simply call [io.reactivex.disposables.Disposable.dispose] when your job is done.
  *
  * @return
  * onNext with [ScanResult]
  *
- * onComplete is never called. You have to manually unsubscribe to stop the scan.
+ * onComplete is never called. The downstream has to dispose to stop the scan.
  *
  * onError if an error has occurred. It can emit [DeviceDoesNotSupportBluetooth], [NeedLocationPermission], [BluetoothIsTurnedOff], [LocationServiceDisabled] and
  * [ScanFailedException]
@@ -55,11 +58,12 @@ fun BluetoothManager.rxScan(
     Completable
         .defer {
             when {
-                adapter == null -> {
+                adapter == null || context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE).not() -> {
                     logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
                     return@defer Completable.error(DeviceDoesNotSupportBluetooth())
                 }
-                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
                     logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
                     return@defer Completable.error(NeedLocationPermission())
                 }
@@ -67,12 +71,12 @@ fun BluetoothManager.rxScan(
                     logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
                     return@defer Completable.error(BluetoothIsTurnedOff())
                 }
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
-                    val locationManager = (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager)
-                    if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()) {
-                        logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
-                        return@defer Completable.error(LocationServiceDisabled())
-                    }
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                        (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager).let { locationManager ->
+                            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
+                        } -> {
+                    logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
+                    return@defer Completable.error(LocationServiceDisabled())
                 }
             }
 
