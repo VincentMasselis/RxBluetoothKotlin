@@ -33,7 +33,7 @@ proguard/
 captures/
 
 # Intellij
-*.iml
+# According to https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 .idea/workspace.xml
 .idea/tasks.xml
 .idea/gradle.xml
