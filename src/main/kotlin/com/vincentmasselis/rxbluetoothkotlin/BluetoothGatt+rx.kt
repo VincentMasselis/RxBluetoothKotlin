@@ -154,22 +154,22 @@ internal var BluetoothGatt.logger: Logger? by NullableFieldProperty { null }
 
 // ------------------------------ Callbacks
 
-        /**
-         * Represents values that matches [BluetoothProfile.STATE_DISCONNECTED],
-         * [BluetoothProfile.STATE_CONNECTING], [BluetoothProfile.STATE_CONNECTED]
-         * or [BluetoothProfile.STATE_DISCONNECTING]
-         *
-         * @see BluetoothGattCallback.onConnectionStateChange
-         */
+/**
+ * Represents values that matches [BluetoothProfile.STATE_DISCONNECTED],
+ * [BluetoothProfile.STATE_CONNECTING], [BluetoothProfile.STATE_CONNECTED]
+ * or [BluetoothProfile.STATE_DISCONNECTING]
+ *
+ * @see BluetoothGattCallback.onConnectionStateChange
+ */
 typealias NewState = Int
 
-        /**
-         * The second [Int] is not documented by Google and can contains different
-         * values between manufacturers. Generally, It match theses values :
-         * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
-         *
-         * @see BluetoothGattCallback.onConnectionStateChange
-         */
+/**
+ * The second [Int] is not documented by Google and can contains different
+ * values between manufacturers. Generally, It match theses values :
+ * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
+ *
+ * @see BluetoothGattCallback.onConnectionStateChange
+ */
 typealias Status = Int
 
 typealias ConnectionState = Pair<NewState, Status>
