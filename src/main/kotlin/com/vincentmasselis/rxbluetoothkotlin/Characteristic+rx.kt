@@ -160,6 +160,9 @@ private fun BluetoothGatt.rxChangeNotification(
 /**
  * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [rxEnableNotification] before listening this method.
  *
+ * By default, the source Flowable will handle back pressure by using the [Flowable.onBackpressureBuffer] operator, you can change this behavior by replacing [composer] by your own
+ * implementation.
+ *
  * @return
  * onNext with the [ByteArray] value from the [characteristic]
  *
@@ -171,8 +174,12 @@ private fun BluetoothGatt.rxChangeNotification(
  * @see rxEnableNotification
  * @see BluetoothGattCallback.onCharacteristicChanged
  */
-fun BluetoothGatt.rxListenChanges(characteristic: BluetoothGattCharacteristic): Flowable<ByteArray> =
+fun BluetoothGatt.rxListenChanges(
+    characteristic: BluetoothGattCharacteristic,
+    composer: ((Flowable<BluetoothGattCharacteristic>) -> Flowable<BluetoothGattCharacteristic>) = { it.onBackpressureBuffer() }
+): Flowable<ByteArray> =
     characteristicChangedSubject
+        .compose(composer)
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
         .takeUntil(
