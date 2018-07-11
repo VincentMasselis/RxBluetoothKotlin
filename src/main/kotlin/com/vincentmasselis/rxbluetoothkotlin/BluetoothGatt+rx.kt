@@ -30,7 +30,7 @@ internal const val TAG = "RxBluetoothKotlin"
  *
  * It emit onSuccess with a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
  *
- * It can throw [NeedLocationPermission], [BluetoothIsTurnedOff] and [LocalDeviceDoesNotSupportBluetooth]
+ * It can throw [NeedLocationPermission], [BluetoothIsTurnedOff] and [NullBluetoothGatt]
  *
  * @see BluetoothGattCallback
  * @see BluetoothDevice.connectGatt
@@ -131,7 +131,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
 
             if (gatt == null) {
                 logger?.v(TAG, "connectGatt method returned null")
-                downStream.tryOnError(LocalDeviceDoesNotSupportBluetooth())
+                downStream.tryOnError(NullBluetoothGatt())
                 return@create
             }
 
@@ -228,7 +228,6 @@ internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: Bluetoo
                         //Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
                         val isDeviceReallyConnected = bluetoothManager
                             .getConnectedDevices(BluetoothProfile.GATT)
-                            .filter { it.type == BluetoothDevice.DEVICE_TYPE_LE }
                             .none { it.address == device.address }
                             .not()
                         if (isDeviceReallyConnected)

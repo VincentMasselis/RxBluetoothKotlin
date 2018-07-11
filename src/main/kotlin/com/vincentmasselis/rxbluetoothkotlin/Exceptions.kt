@@ -57,11 +57,10 @@ class ScanFailedException(val status: Int) : Throwable() {
 // ------------------ Bluetooth exceptions when connected
 
 /**
- * Exception fired when trying to connect on a remote device while local device doesn't support
- * bluetooth
+ * Exception fired when trying to connect to a remote device but the [BluetoothDevice.connectGatt] method returned null
  */
-class LocalDeviceDoesNotSupportBluetooth : Throwable() {
-    override fun toString(): String = "LocalDeviceDoesNotSupportBluetooth()"
+class NullBluetoothGatt : Throwable() {
+    override fun toString(): String = "NullBluetoothGatt()"
 }
 
 /**
