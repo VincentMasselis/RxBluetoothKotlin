@@ -13,5 +13,11 @@ fun IntentFilter.toObservable(context: Context): Observable<Pair<Context, Intent
         }
     }
     context.registerReceiver(receiver, this)
-    downStream.setCancellable { context.unregisterReceiver(receiver) }
+    downStream.setCancellable {
+        try {
+            context.unregisterReceiver(receiver)
+        } catch (_: IllegalArgumentException) {
+            // Calling unregisterReceiver with a receiver already unregistered throws IllegalArgumentException. Everything is fine, fired exception doesn't need to be forwarded to the downstream so I catch it and I do nothing else.
+        }
+    }
 }
