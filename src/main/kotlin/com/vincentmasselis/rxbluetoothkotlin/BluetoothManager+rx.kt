@@ -12,6 +12,8 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O_MR1
+import android.os.Handler
+import android.os.Looper
 import android.support.v4.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
@@ -169,8 +171,10 @@ fun BluetoothManager.rxScan(
 
                 downStream.setCancellable {
                     disposables.dispose()
-                    logger?.v(TAG, "rxScan(), stopScan()")
-                    scanner.stopScan(callback)
+                    Handler(Looper.getMainLooper()).post {
+                        logger?.v(TAG, "rxScan(), stopScan()")
+                        scanner.stopScan(callback)
+                    }
                 }
             }, BackpressureStrategy.BUFFER)
         )
