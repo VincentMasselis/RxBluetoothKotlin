@@ -228,8 +228,7 @@ internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: Bluetoo
                         //Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
                         val isDeviceReallyConnected = bluetoothManager
                             .getConnectedDevices(BluetoothProfile.GATT)
-                            .none { it.address == device.address }
-                            .not()
+                            .any { it.address == device.address }
                         if (isDeviceReallyConnected)
                             downStream.onNext(Unit)
                         else
