@@ -170,6 +170,16 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
         override fun toString(): String = "GattDeviceDisconnected() ${super.toString()}"
     }
 
+    class ChangeNotificationDeviceDisconnected(
+        bluetoothDevice: BluetoothDevice, status: Int,
+        val characteristic: BluetoothGattCharacteristic,
+        val notificationValue: ByteArray,
+        val checkIfAlreadyChanged: Boolean
+    ) : DeviceDisconnected(bluetoothDevice, status) {
+        override fun toString(): String =
+            "ChangeNotificationDeviceDisconnected(characteristic=$characteristic, notificationValue=${Arrays.toString(notificationValue)}, checkIfAlreadyChanged=$checkIfAlreadyChanged) ${super.toString()}"
+    }
+
     /**
      * Fired when device disconnect while reading characteristic
      */

@@ -132,22 +132,28 @@ private fun BluetoothGatt.rxChangeNotification(
     characteristic: BluetoothGattCharacteristic,
     byteArray: ByteArray,
     checkIfAlreadyChanged: Boolean
-): Maybe<BluetoothGattCharacteristic> = Maybe
-    .defer {
-        val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
-        logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
-        if (setCharacteristicNotification(characteristic, isEnable).not())
-            Maybe.error {
-                CannotInitializeCharacteristicNotification(
-                    device,
-                    characteristic.service,
-                    characteristic,
-                    internalService(),
-                    clientIf(),
-                    characteristic.service?.device()
-                )
+): Maybe<BluetoothGattCharacteristic> =
+    enqueue({ device, status -> ChangeNotificationDeviceDisconnected(device, status, characteristic, byteArray, checkIfAlreadyChanged) },
+        {
+            Single.create<Unit> { downStream ->
+                val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
+                logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
+                if (setCharacteristicNotification(characteristic, isEnable).not())
+                    downStream.tryOnError(
+                        CannotInitializeCharacteristicNotification(
+                            device,
+                            characteristic.service,
+                            characteristic,
+                            internalService(),
+                            clientIf(),
+                            characteristic.service?.device()
+                        )
+                    )
+                else
+                    downStream.onSuccess(Unit)
             }
-        else {
+        })
+        .flatMap { _ ->
             val notificationDescriptor = characteristic.getDescriptor(GattConst.CLIENT_CHARACTERISTIC_CONFIG)
             if (notificationDescriptor == null)
                 Maybe.error(DescriptorNotFound(device, characteristic.uuid, GattConst.CLIENT_CHARACTERISTIC_CONFIG))
@@ -155,7 +161,6 @@ private fun BluetoothGatt.rxChangeNotification(
                 rxWrite(notificationDescriptor, byteArray, checkIfAlreadyChanged)
                     .map { characteristic }
         }
-    }
 
 /**
  * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [rxEnableNotification] before listening this method.
@@ -183,7 +188,7 @@ fun BluetoothGatt.rxListenChanges(
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
         .takeUntil(
-            livingConnection({ device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) })
+            livingConnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
                 .onErrorResumeNext(Function {
                     if (it is ExceptedDisconnectionException)
                         Observable.empty()

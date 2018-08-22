@@ -21,6 +21,14 @@ import java.util.concurrent.TimeUnit
 private val BluetoothGatt.semaphore: Semaphore by SynchronizedFieldProperty { Semaphore(1) }
 private val BluetoothGatt.executor: ExecutorService by SynchronizedFieldProperty { Executors.newSingleThreadExecutor() }
 
+/**
+ * [enqueue] is a useful method which avoid multiple I/O operation on the [BluetoothGatt] at the same time and it does every one on the main thread.
+ *
+ * [exception] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
+ * calling method. It helps the downstream to handle the exception and find where the exception was fired.
+ *
+ * [sourceSingle] the single which contains a [BluetoothGatt] I/O operation.
+ */
 internal fun <R> BluetoothGatt.enqueue(exception: (device: BluetoothDevice, status: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
     val downStreamDisp = CompositeDisposable()
 
