@@ -77,18 +77,9 @@ class BluetoothTimeout : Throwable() {
 /**
  * Fired when trying to search a characteristic whereas services are not discovered
  */
-class SearchingCharacteristicButServicesNotDiscovered(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
+class LookingForCharacteristicButServicesNotDiscovered(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
     override fun toString(): String =
         "SearchingCharacteristicButServicesNotDiscovered(device=$device, characteristicUUID=$characteristicUUID)"
-}
-
-/**
- * Fired when calling [android.bluetooth.BluetoothGatt.rxCharacteristic] and the characteristic is not
- * found.
- */
-class CharacteristicNotFound(val device: BluetoothDevice, val characteristicUUID: UUID) : Throwable() {
-    override fun toString(): String =
-        "CharacteristicNotFound(device=$device, characteristicUUID=$characteristicUUID)"
 }
 
 /**
@@ -170,6 +161,9 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
         override fun toString(): String = "GattDeviceDisconnected() ${super.toString()}"
     }
 
+    /**
+     * Fired if the device disconnects while changing the notification state (enable or disable)
+     */
     class ChangeNotificationDeviceDisconnected(
         bluetoothDevice: BluetoothDevice, status: Int,
         val characteristic: BluetoothGattCharacteristic,

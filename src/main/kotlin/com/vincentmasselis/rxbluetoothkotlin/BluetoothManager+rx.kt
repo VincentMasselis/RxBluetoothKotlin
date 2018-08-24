@@ -26,12 +26,12 @@ import java.util.concurrent.TimeUnit
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
- * [context] is used to listen bluetooth changes and check the app has the required permissions.
+ * @param context is used to listen bluetooth changes and check the app has the required permissions.
  *
- * If [scanArgs] param is not null, the method [android.bluetooth.le.BluetoothLeScanner.startScan] will be called.
+ * @param scanArgs If [scanArgs] param is not null, the method [android.bluetooth.le.BluetoothLeScanner.startScan] with 3 params will be called instead of the one with 1 param.
  *
- * If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay until the downstream is
- * disposed.
+ * @param flushEvery If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay until the
+ * downstream is disposed.
  *
  * Warning ! It never completes ! It stops his scan only when the downstream is disposed.
  * For example you can use a [Flowable.takeUntil] + [Flowable.timer] operator to stop scanning after a delay.

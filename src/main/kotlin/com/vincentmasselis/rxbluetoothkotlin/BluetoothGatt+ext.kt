@@ -7,7 +7,6 @@ import android.os.Looper
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.SimpleDeviceDisconnected
 import io.reactivex.Completable
 import io.reactivex.Maybe
-import io.reactivex.Single
 import java.util.*
 
 /**
@@ -58,44 +57,17 @@ fun BluetoothGatt.rxListenDisconnection(): Completable =
 
 /**
  * Returns a [BluetoothGattCharacteristic] if [this] contains a [BluetoothGattCharacteristic]
- * matching with this [uuid]
- *
- * @return
- * onSuccess with the [BluetoothGattCharacteristic] value
- *
- * onComplete if [this] doesn't contain matching [BluetoothGattCharacteristic] for [uuid]
- *
- * onError [SearchingCharacteristicButServicesNotDiscovered] if [BluetoothGatt.getServices] is empty
+ * matching with the filled [uuid]
  */
-fun BluetoothGatt.rxCharacteristicMaybe(uuid: UUID): Maybe<BluetoothGattCharacteristic> =
-    Maybe.defer {
-        if (services.isEmpty())
-            Maybe.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
-        else {
-            services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Maybe.just(it) } }
-            Maybe.empty()
-        }
+@Throws(LookingForCharacteristicButServicesNotDiscovered::class)
+fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
+    if (services.isEmpty())
+        throw LookingForCharacteristicButServicesNotDiscovered(device, uuid)
+    else {
+        services.forEach { service -> service.characteristics.forEach { if (it.uuid == uuid) return it } }
+        return null
     }
-
-/**
- * Returns a [BluetoothGattCharacteristic] if [this] contains a [BluetoothGattCharacteristic]
- * matching with this [uuid]
- *
- * @return
- * onSuccess with the [BluetoothGattCharacteristic] value
- *
- * onError [SearchingCharacteristicButServicesNotDiscovered] if [BluetoothGatt.getServices] is empty
- * or [CharacteristicNotFound] if [uuid] is not found.
- */
-fun BluetoothGatt.rxCharacteristic(uuid: UUID): Single<BluetoothGattCharacteristic> =
-    Single.defer {
-        if (services.isEmpty())
-            Single.error<BluetoothGattCharacteristic>(SearchingCharacteristicButServicesNotDiscovered(device, uuid))
-        else {
-            services.forEach { it.characteristics.forEach { if (it.uuid == uuid) return@defer Single.just(it) } }
-            Single.error<BluetoothGattCharacteristic>(CharacteristicNotFound(device, uuid))
-        }
-    }
+}
 
 /**
  * @return true if [this] changes can be used with indication instead of notification.

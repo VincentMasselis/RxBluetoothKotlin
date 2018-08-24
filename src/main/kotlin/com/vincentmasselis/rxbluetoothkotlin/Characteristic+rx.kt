@@ -101,9 +101,21 @@ fun BluetoothGatt.rxWrite(characteristic: BluetoothGattCharacteristic, value: By
         }
 
 /**
- * Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from [BluetoothGattDescriptor.rxWrite] method.
+ * Enables notification for the [characteristic]. Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from [BluetoothGatt.rxWrite]
+ * method.
  *
- * Set [checkIfAlreadyEnabled] to true to avoid enabling twice the same notification.
+ * @param checkIfAlreadyEnabled Set [checkIfAlreadyEnabled] to true to avoid enabling twice the same notification.
+ *
+ * @param indication By default, notification is used, you can change this and use indication instead. Indication is a little bit slower than notification because it has an ACK mechanism for every
+ * [ByteArray] received for [characteristic]. Learn more [here](https://devzone.nordicsemi.com/f/nordic-q-a/99/notification-indication-difference/533#533).
+ *
+ * @return
+ * onSuccess with the written [BluetoothGattCharacteristic] when notification is enabled
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while turning on notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
+ * [CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [BluetoothGatt.rxWrite] method (the one used to write on a descriptor)
  */
 fun BluetoothGatt.rxEnableNotification(
     characteristic: BluetoothGattCharacteristic,
@@ -117,9 +129,17 @@ fun BluetoothGatt.rxEnableNotification(
     )
 
 /**
- * Because disabling notification require an descriptor write, the [Maybe] returned can fire errors from [BluetoothGattDescriptor.rxWrite] method.
+ * Disables notification for the [characteristic]. Because disabling notification require an descriptor write, the [Maybe] returned can fire every error from [BluetoothGatt.rxWrite] method.
  *
- * Set [checkIfAlreadyDisabled] to true to avoid disabling twice the same notification.
+ * @param checkIfAlreadyDisabled Set [checkIfAlreadyDisabled] to true to avoid disabling twice the same notification.
+ *
+ * @return
+ * onSuccess with the written [BluetoothGattCharacteristic] when notification is disabled
+ *
+ * onComplete when the connection of [this] is closed by the user
+ *
+ * onError if an error has occurred while turning off notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
+ * [CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [BluetoothGatt.rxWrite] method (the one used to write on a descriptor)
  */
 fun BluetoothGatt.rxDisableNotification(characteristic: BluetoothGattCharacteristic, checkIfAlreadyDisabled: Boolean = true): Maybe<BluetoothGattCharacteristic> =
     rxChangeNotification(
@@ -154,9 +174,9 @@ private fun BluetoothGatt.rxChangeNotification(
             }
         })
         .flatMap { _ ->
-            val notificationDescriptor = characteristic.getDescriptor(GattConst.CLIENT_CHARACTERISTIC_CONFIG)
+            val notificationDescriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
             if (notificationDescriptor == null)
-                Maybe.error(DescriptorNotFound(device, characteristic.uuid, GattConst.CLIENT_CHARACTERISTIC_CONFIG))
+                Maybe.error(DescriptorNotFound(device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
             else
                 rxWrite(notificationDescriptor, byteArray, checkIfAlreadyChanged)
                     .map { characteristic }
@@ -165,15 +185,15 @@ private fun BluetoothGatt.rxChangeNotification(
 /**
  * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [rxEnableNotification] before listening this method.
  *
- * By default, the source Flowable will handle back pressure by using the [Flowable.onBackpressureBuffer] operator, you can change this behavior by replacing [composer] by your own
- * implementation.
+ * @param composer By default, the source Flowable will handle back pressure by using the [Flowable.onBackpressureBuffer] operator, you can change this behavior by replacing
+ * [composer] by your own implementation.
  *
  * @return
  * onNext with the [ByteArray] value from the [characteristic]
  *
  * onComplete when the connection of [this] is closed by the user
  *
- * onError if an error has occurred while writing. It can emit [BluetoothIsTurnedOff]
+ * onError if an error has occurred while listening. It can emit [BluetoothIsTurnedOff]
  * and [ListenChangesDeviceDisconnected].
  *
  * @see rxEnableNotification

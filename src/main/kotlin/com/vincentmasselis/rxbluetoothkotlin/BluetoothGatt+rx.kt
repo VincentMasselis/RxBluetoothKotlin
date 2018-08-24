@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.Manifest
@@ -28,9 +30,13 @@ internal const val TAG = "RxBluetoothKotlin"
  * listen the [io.reactivex.MaybeObserver.onSuccess] event from the [Maybe] returned by
  * [rxWhenConnectionIsReady] method.
  *
- * It emit onSuccess with a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
+ * @param autoConnect similar to "autoConnect" from the [BluetoothDevice.connectGatt] method. Use it wisely.
+ * @param logger Set a [logger] to log every event which occurs from the BLE API (connections, writes, notifications, MTU, missing permissions, etc...).
  *
- * It can throw [NeedLocationPermission], [BluetoothIsTurnedOff] and [NullBluetoothGatt]
+ * @return
+ * onSuccess with a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
+ *
+ * onError with [NeedLocationPermission], [BluetoothIsTurnedOff] or [NullBluetoothGatt]
  *
  * @see BluetoothGattCallback
  * @see BluetoothDevice.connectGatt
@@ -164,7 +170,7 @@ internal var BluetoothGatt.logger: Logger? by NullableFieldProperty { null }
 typealias NewState = Int
 
 /**
- * The second [Int] is not documented by Google and can contains different
+ * The second [Int] is not documented by the Android team and can contains different
  * values between manufacturers. Generally, It match theses values :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
  *
@@ -242,8 +248,25 @@ internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: Bluetoo
                         downStream.tryOnError(exceptionConverter(device, status))
                 })
     }
-    .takeUntil(assertBluetoothState().toObservable<Unit>())
-    .apply { checkSubjectsAreCalledByCallbacks() }
+    .takeUntil( // Forward the [BluetoothIsTurnedOff] exception to livingConnection when it occurs
+        IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            .toObservable(context!!)
+            .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
+            .startWith(
+                if ((context!!.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                    BluetoothAdapter.STATE_ON
+                else
+                    BluetoothAdapter.STATE_OFF
+            )
+            .filter { it != BluetoothAdapter.STATE_ON }
+            .firstOrError()
+            .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
+            .toObservable<Unit>()
+    )
+    .apply {
+        if (context == null) // Check that [this] was created by calling [rxGatt]
+            throw IllegalStateException("To continue, you have to connect by using rxGatt()")
+    }
 
 /**
  * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the [Status]
@@ -267,31 +290,6 @@ fun BluetoothGatt.rxLivingConnection(): Observable<Unit> =
                 Observable.error(it)
         })
 
-/**
- * This method checks if [this] is an instance created by using [rxGatt] by
- * checking if [this] contains an instance of [Context] in the field [context], only
- * [rxGatt] do this.
- */
-private fun BluetoothGatt.checkSubjectsAreCalledByCallbacks() {
-    if (context == null) throw IllegalStateException("In order to use this method, you have to connect by using rxGatt()")
-}
-
-/**
- * [Completable] which only emit a [BluetoothIsTurnedOff] exception when bluetooth is turned off, it never completes.
- */
-private fun BluetoothGatt.assertBluetoothState(): Completable =
-    IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-        .toObservable(context!!)
-        .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
-        .startWith(
-            if ((context!!.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
-                BluetoothAdapter.STATE_ON
-            else
-                BluetoothAdapter.STATE_OFF
-        )
-        .filter { it != BluetoothAdapter.STATE_ON }
-        .firstOrError()
-        .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
 
 // ------------------------------ RSSI
 
@@ -310,14 +308,13 @@ private fun BluetoothGatt.assertBluetoothState(): Completable =
  * @see BluetoothGattCallback.onReadRemoteRssi
  */
 fun BluetoothGatt.rxReadRemoteRssi(): Maybe<Rssi> =
-    enqueue(::RssiDeviceDisconnected
-        , {
-            Single.create<Pair<Int, Int>> { downStream ->
-                downStream.setDisposable(readRemoteRssiSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                logger?.v(TAG, "readRemoteRssi")
-                if (readRemoteRssi().not()) downStream.tryOnError(CannotInitializeRssiReading(device))
-            }
-        })
+    enqueue(::RssiDeviceDisconnected) {
+        Single.create<Pair<Int, Int>> { downStream ->
+            downStream.setDisposable(readRemoteRssiSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "readRemoteRssi")
+            if (readRemoteRssi().not()) downStream.tryOnError(CannotInitializeRssiReading(device))
+        }
+    }
         .flatMap { (value, status) ->
             if (status != GATT_SUCCESS) Maybe.error(RssiReadingFailed(status, device))
             else Maybe.just(value)
@@ -341,14 +338,13 @@ fun BluetoothGatt.rxReadRemoteRssi(): Maybe<Rssi> =
  * @see BluetoothGattCallback.onServicesDiscovered
  */
 fun BluetoothGatt.rxDiscoverServices(): Maybe<List<BluetoothGattService>> =
-    enqueue(::DiscoverServicesDeviceDisconnected
-        , {
-            Single.create<Int> { downStream ->
-                downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                logger?.v(TAG, "discoverServices")
-                if (discoverServices().not()) downStream.tryOnError(CannotInitializeServicesDiscovering(device))
-            }
-        })
+    enqueue(::DiscoverServicesDeviceDisconnected) {
+        Single.create<Int> { downStream ->
+            downStream.setDisposable(servicesDiscoveredSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "discoverServices")
+            if (discoverServices().not()) downStream.tryOnError(CannotInitializeServicesDiscovering(device))
+        }
+    }
         .flatMap { status ->
             if (status != GATT_SUCCESS) Maybe.error(ServiceDiscoveringFailed(status, device))
             else Maybe.just(services)
@@ -372,15 +368,14 @@ fun BluetoothGatt.rxDiscoverServices(): Maybe<List<BluetoothGattService>> =
  */
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 fun BluetoothGatt.rxRequestMtu(mtu: Int): Maybe<Mtu> =
-    enqueue(::MtuDeviceDisconnected
-        , {
-            Single
-                .create<Pair<Int, Int>> { downStream ->
-                    downStream.setDisposable(mtuChangedSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "requestMtu")
-                    if (requestMtu(mtu).not()) downStream.tryOnError(CannotInitializeMtuRequesting(device))
-                }
-        })
+    enqueue(::MtuDeviceDisconnected) {
+        Single
+            .create<Pair<Int, Int>> { downStream ->
+                downStream.setDisposable(mtuChangedSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                logger?.v(TAG, "requestMtu")
+                if (requestMtu(mtu).not()) downStream.tryOnError(CannotInitializeMtuRequesting(device))
+            }
+    }
         .flatMap { (mtu, status) ->
             if (status != GATT_SUCCESS) Maybe.error(MtuRequestingFailed(status, device))
             else Maybe.just(mtu)
@@ -407,15 +402,14 @@ fun BluetoothGatt.rxRequestMtu(mtu: Int): Maybe<Mtu> =
  */
 @RequiresApi(api = Build.VERSION_CODES.O)
 fun BluetoothGatt.rxReadPhy(): Maybe<ConnectionPhy> =
-    enqueue(::ReadPhyDeviceDisconnected
-        , {
-            Single
-                .create<Pair<ConnectionPhy, Int>> { downStream ->
-                    downStream.setDisposable(phyReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "readPhy")
-                    readPhy()
-                }
-        })
+    enqueue(::ReadPhyDeviceDisconnected) {
+        Single
+            .create<Pair<ConnectionPhy, Int>> { downStream ->
+                downStream.setDisposable(phyReadSubject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                logger?.v(TAG, "readPhy")
+                readPhy()
+            }
+    }
         .flatMap { (connectionPhy, status) ->
             if (status != GATT_SUCCESS) Maybe.error(PhyReadFailed(connectionPhy, status, device))
             else Maybe.just(connectionPhy)
