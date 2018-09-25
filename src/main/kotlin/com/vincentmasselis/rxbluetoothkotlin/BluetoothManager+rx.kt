@@ -14,7 +14,7 @@ import android.os.Build.VERSION.SDK_INT
 import android.os.Build.VERSION_CODES.O_MR1
 import android.os.Handler
 import android.os.Looper
-import android.support.v4.content.ContextCompat
+import androidx.core.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -134,10 +134,10 @@ fun BluetoothManager.rxScan(
                     Single
                         .fromCallable {
                             //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
-                            val realCallback = scanner.javaClass.superclass.getDeclaredField("mCallbacks")
-                                .apply { isAccessible = true }
-                                .get(scanner)
-                                .let { it as? Map<*, *> }
+                            val realCallback = scanner.javaClass.superclass?.getDeclaredField("mCallbacks")
+                                ?.apply { isAccessible = true }
+                                ?.get(scanner)
+                                ?.let { it as? Map<*, *> }
                                 ?.get(callback)
                             val systemScanner = adapter.bluetoothLeScanner
                             systemScanner.javaClass.getDeclaredField("mLeScanClients")
