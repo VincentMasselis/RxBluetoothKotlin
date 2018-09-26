@@ -3,6 +3,7 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.Manifest
+import android.app.Application
 import android.bluetooth.*
 import android.bluetooth.BluetoothGatt.GATT_SUCCESS
 import android.content.Context
@@ -41,18 +42,17 @@ internal const val TAG = "RxBluetoothKotlin"
  * @see BluetoothGattCallback
  * @see BluetoothDevice.connectGatt
  */
-fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logger: Logger? = null): Single<BluetoothGatt> =
+fun BluetoothDevice.rxGatt(app: Application, autoConnect: Boolean = false, logger: Logger? = null): Single<BluetoothGatt> =
     Single
         .create<BluetoothGatt> { downStream ->
-            logger?.v(TAG, "connectGatt with context $context and autoConnect $autoConnect")
 
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")
                 downStream.tryOnError(NeedLocationPermission())
                 return@create
             }
 
-            val btState = if ((context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled) BluetoothAdapter.STATE_ON else BluetoothAdapter.STATE_OFF
+            val btState = if ((app.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled) BluetoothAdapter.STATE_ON else BluetoothAdapter.STATE_OFF
 
             if (btState == BluetoothAdapter.STATE_OFF) {
                 logger?.v(TAG, "Bluetooth is off")
@@ -133,7 +133,8 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                 }
             }
 
-            val gatt = connectGatt(context, autoConnect, callbacks)
+            logger?.v(TAG, "connectGatt with conntext $app and autoConnect $autoConnect")
+            val gatt = connectGatt(app, autoConnect, callbacks)
 
             if (gatt == null) {
                 logger?.v(TAG, "connectGatt method returned null")
@@ -141,7 +142,7 @@ fun BluetoothDevice.rxGatt(context: Context, autoConnect: Boolean = false, logge
                 return@create
             }
 
-            gatt.context = context
+            gatt.context = app
             gatt.logger = logger
 
             downStream.onSuccess(gatt)
