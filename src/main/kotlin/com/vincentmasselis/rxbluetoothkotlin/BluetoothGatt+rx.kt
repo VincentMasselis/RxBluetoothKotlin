@@ -10,6 +10,8 @@ import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.*
@@ -232,7 +234,8 @@ internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: Bluetoo
             connectionStateSubject
                 .subscribe { (newState, status) ->
                     if (newState == BluetoothProfile.STATE_CONNECTED && status == GATT_SUCCESS) {
-                        //Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
+                        // Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the
+                        // Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
                         val isDeviceReallyConnected = bluetoothManager
                             .getConnectedDevices(BluetoothProfile.GATT)
                             .any { it.address == device.address }
@@ -261,7 +264,14 @@ internal fun BluetoothGatt.livingConnection(exceptionConverter: (device: Bluetoo
             )
             .filter { it != BluetoothAdapter.STATE_ON }
             .firstOrError()
-            .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
+            .flatMapCompletable {
+                // On the previous Android version, turning off the Bluetooth calls onConnectionStateChange which automatically closes the BluetoothGatt connection. Since Oreo,
+                // onConnectionStateChange is no longer called so I have to manually close the connection the be sure that BluetoothGatt will not be used anymore and a new
+                // BluetoothGatt will be created. (If BluetoothGatt is not closed, I can lead to multiple BluetoothGatt instance connected to the same device with the SAME clientIf
+                // id, I've seen it on Mi Mix 2s MIUI 10.0, Android 8.0.0)
+                Handler(Looper.getMainLooper()).post { close() }
+                Completable.error(BluetoothIsTurnedOff())
+            }
             .toObservable<Unit>()
     )
     .apply {
