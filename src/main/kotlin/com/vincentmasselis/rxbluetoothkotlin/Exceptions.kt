@@ -57,7 +57,9 @@ class ScanFailedException(val status: Int) : Throwable() {
 // ------------------ Bluetooth exceptions when connected
 
 /**
- * Exception fired when trying to connect to a remote device but the [BluetoothDevice.connectGatt] method returned null
+ * Exception fired when trying to connect to a remote device but the [BluetoothDevice.connectGatt] method returned null.
+ * According to the Android source code, this exception could fire if the device doesn't support Bluetooth or if an
+ * exception occurs while getting the Bluetooth interface from the manufacturer.
  */
 class NullBluetoothGatt : Throwable() {
     override fun toString(): String = "NullBluetoothGatt()"
