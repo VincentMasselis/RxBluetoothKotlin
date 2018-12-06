@@ -135,8 +135,9 @@ fun BluetoothDevice.rxGatt(app: Application, autoConnect: Boolean = false, logge
                 }
             }
 
-            logger?.v(TAG, "connectGatt with conntext $app and autoConnect $autoConnect")
-            val gatt = connectGatt(app, autoConnect, callbacks)
+            logger?.v(TAG, "connectGatt with app $app and autoConnect $autoConnect")
+            val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(app, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)
+            else connectGatt(app, autoConnect, callbacks)
 
             if (gatt == null) {
                 logger?.v(TAG, "connectGatt method returned null")
