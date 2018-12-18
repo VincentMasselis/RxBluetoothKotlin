@@ -17,6 +17,7 @@ android {
         release {
             consumerProguardFiles 'proguard-rules.pro'
         }
+        ci {}
     }
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
