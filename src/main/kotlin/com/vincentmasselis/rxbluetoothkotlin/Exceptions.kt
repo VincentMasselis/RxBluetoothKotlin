@@ -151,7 +151,7 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
     /**
      * Fired when device disconnect while reading phy
      */
-    class SetPreferredPhyDeviceDisconnected(val connectionPhy: ConnectionPhy, val phyOptions: Int, bluetoothDevice: BluetoothDevice, status: Int) :
+    class SetPreferredPhyDeviceDisconnected(val connectionPhy: ConnectionPHY, val phyOptions: Int, bluetoothDevice: BluetoothDevice, status: Int) :
         DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "SetPreferredPhyDeviceDisconnected(connectionPhy=$connectionPhy, phyOptions=$phyOptions) ${super.toString()}"
     }
@@ -391,14 +391,14 @@ sealed class IOFailed(val status: Int, val device: BluetoothDevice) : Throwable(
     /**
      * Fired when PHY request returns an error
      */
-    class PhyReadFailed(val connectionPhy: ConnectionPhy, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
+    class PhyReadFailed(val connectionPhy: ConnectionPHY, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
         override fun toString(): String = "PhyReadFailed(connectionPhy=$connectionPhy) ${super.toString()}"
     }
 
     /**
      * Fired when PHY preferred changes returns an error
      */
-    class SetPreferredPhyFailed(val connectionPhy: ConnectionPhy, val phyOptions: Int, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
+    class SetPreferredPhyFailed(val connectionPhy: ConnectionPHY, val phyOptions: Int, status: Int, device: BluetoothDevice) : IOFailed(status, device) {
         override fun toString(): String = "SetPreferredPhyFailed(connectionPhy=$connectionPhy, phyOptions=$phyOptions) ${super.toString()}"
     }
 

@@ -23,6 +23,7 @@ import io.reactivex.schedulers.Schedulers
 import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 
+private const val TAG = "BluetoothManager+rx"
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
@@ -73,7 +74,7 @@ fun BluetoothManager.rxScan(
                     logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
                     return@defer Completable.error(BluetoothIsTurnedOff())
                 }
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                SDK_INT >= Build.VERSION_CODES.M &&
                         (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager).let { locationManager ->
                             locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
                         } -> {
