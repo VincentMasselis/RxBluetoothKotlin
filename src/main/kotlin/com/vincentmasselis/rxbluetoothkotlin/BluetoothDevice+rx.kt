@@ -35,7 +35,7 @@ private const val TAG = "BluetoothDevice+rx"
  * @see BluetoothDevice.connectGatt
  */
 @Suppress("UNCHECKED_CAST")
-fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectRxGattOfType(
+fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
     app: Application,
     autoConnect: Boolean = false,
     logger: Logger? = null,
@@ -71,11 +71,11 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectR
     }
     .subscribeOn(AndroidSchedulers.mainThread())
 
-/** @see connectRxGattOfType */
+/** @see connectTypedRxGatt */
 fun BluetoothDevice.connectRxGatt(
     app: Application,
     autoConnect: Boolean = false,
     logger: Logger? = null,
     callbackConstructor: (() -> RxBluetoothGatt.Callback)? = null,
     rxGattConstructor: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt)? = null
-) = connectRxGattOfType(app, autoConnect, logger, callbackConstructor, rxGattConstructor)
+) = connectTypedRxGatt(app, autoConnect, logger, callbackConstructor, rxGattConstructor)
