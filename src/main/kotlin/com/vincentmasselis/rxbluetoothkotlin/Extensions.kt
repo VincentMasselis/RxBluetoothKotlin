@@ -18,11 +18,9 @@ import java.util.*
  *
  * onError with [BluetoothIsTurnedOff] or [SimpleDeviceDisconnected]
  *
- * @see rxLivingConnection
+ * @see RxBluetoothGatt.livingConnection
  */
-fun BluetoothGatt.rxWhenConnectionIsReady(): Maybe<Unit> =
-    rxLivingConnection()
-        .firstElement()
+fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().firstElement()
 
 /**
  * Start a disconnection and completes when it's done.
@@ -33,12 +31,11 @@ fun BluetoothGatt.rxWhenConnectionIsReady(): Maybe<Unit> =
  * onError with [BluetoothIsTurnedOff] or [SimpleDeviceDisconnected] if the device was disconnect
  * with an error.
  *
- * @see rxLivingConnection
+ * @see RxBluetoothGatt.livingConnection
  */
-fun BluetoothGatt.rxDisconnect(): Completable =
-    rxLivingConnection()
-        .doOnSubscribe { Handler(Looper.getMainLooper()).post { disconnect() } }
-        .ignoreElements()
+fun RxBluetoothGatt.disconnect(): Completable = livingConnection()
+    .doOnSubscribe { Handler(Looper.getMainLooper()).post { source.disconnect() } }
+    .ignoreElements()
 
 /**
  * Listen [BluetoothGatt] disconnections.
@@ -49,11 +46,9 @@ fun BluetoothGatt.rxDisconnect(): Completable =
  * onError with [BluetoothIsTurnedOff] or [SimpleDeviceDisconnected] if the device was disconnected
  * with an error.
  *
- * @see rxLivingConnection
+ * @see RxBluetoothGatt.livingConnection
  */
-fun BluetoothGatt.rxListenDisconnection(): Completable =
-    rxLivingConnection()
-        .ignoreElements()
+fun RxBluetoothGatt.listenDisconnection(): Completable = livingConnection().ignoreElements()
 
 /**
  * Returns a [BluetoothGattCharacteristic] if [this] contains a [BluetoothGattCharacteristic]
@@ -70,10 +65,10 @@ fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
 }
 
 /**
- * @return true if [this] changes can be used with indication instead of notification.
+ * @return true if [this] notifications changes can be used with by using indication instead of notification.
  *
- * @see rxEnableNotification
- * @see rxListenChanges
+ * @see RxBluetoothGatt.enableNotification
+ * @see RxBluetoothGatt.listenChanges
  * @see BluetoothGattCharacteristic.PROPERTY_INDICATE
  */
 fun BluetoothGattCharacteristic.hasIndication() = properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
