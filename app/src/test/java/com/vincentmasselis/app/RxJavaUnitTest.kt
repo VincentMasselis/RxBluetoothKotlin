@@ -1,4 +1,4 @@
-package com.vincentmasselis.rxbluetoothkotlin
+package com.vincentmasselis.app
 
 import io.reactivex.Completable
 import io.reactivex.Flowable
@@ -21,7 +21,11 @@ class RxJavaUnitTest {
         println("-------- livingConnectionNormalTest")
 
         Observable.just(Unit)
-            .mergeWith(Observable.timer(150, TimeUnit.MILLISECONDS).flatMap { Observable.error<Unit>(DisconnectException()) })
+            .mergeWith(
+                Observable.timer(
+                    150,
+                    TimeUnit.MILLISECONDS
+                ).flatMap { Observable.error<Unit>(DisconnectException()) })
             .doOnEach {
                 println("${System.currentTimeMillis()} living connection value : ${it.value}")
                 println("${System.currentTimeMillis()} living connection error : ${it.error}")
@@ -57,7 +61,11 @@ class RxJavaUnitTest {
         println("-------- livingConnectionDisconnectedTest")
 
         Observable.just(Unit)
-            .mergeWith(Observable.timer(50, TimeUnit.MILLISECONDS).flatMap { Observable.error<Unit>(DisconnectException()) })
+            .mergeWith(
+                Observable.timer(
+                    50,
+                    TimeUnit.MILLISECONDS
+                ).flatMap { Observable.error<Unit>(DisconnectException()) })
             .doOnEach {
                 println("${System.currentTimeMillis()} living connection value : ${it.value}")
                 println("${System.currentTimeMillis()} living connection error : ${it.error}")
@@ -186,7 +194,11 @@ class RxJavaUnitTest {
         val subject = PublishSubject.create<Int>()
 
         Single.create<Int> { downStream ->
-            downStream.setDisposable(subject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+            downStream.setDisposable(
+                subject.firstOrError().subscribe(
+                    { downStream.onSuccess(it) },
+                    { downStream.onError(it) })
+            )
             subject.onNext(5)
         }
             .run { assertEquals(5, blockingGet()) }
@@ -201,7 +213,11 @@ class RxJavaUnitTest {
 
         Single
             .create<Int> { downStream ->
-                downStream.setDisposable(subject.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.onError(it) }))
+                downStream.setDisposable(
+                    subject.firstOrError().subscribe(
+                        { downStream.onSuccess(it) },
+                        { downStream.onError(it) })
+                )
                 subject.onError(ExceptedException())
             }
             .run {
