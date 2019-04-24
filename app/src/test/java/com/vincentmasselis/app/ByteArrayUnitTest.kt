@@ -1,8 +1,8 @@
-package com.vincentmasselis.rxbluetoothkotlin
+package com.vincentmasselis.app
 
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
+import junit.framework.Assert.assertEquals
 import org.junit.Test
-import kotlin.test.assertEquals
 
 class ByteArrayUnitTest {
 

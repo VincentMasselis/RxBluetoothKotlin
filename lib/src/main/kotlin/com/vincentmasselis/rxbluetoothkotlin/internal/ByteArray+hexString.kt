@@ -17,7 +17,7 @@ internal fun Byte.toHexString(): String {
 /**
  *  Returns the HEX representation of ByteArray data.
  */
-internal fun ByteArray.toHexString(): String {
+fun ByteArray.toHexString(): String {
     val builder = StringBuilder()
     for (b in this) {
         builder.append(b.toHexString())
