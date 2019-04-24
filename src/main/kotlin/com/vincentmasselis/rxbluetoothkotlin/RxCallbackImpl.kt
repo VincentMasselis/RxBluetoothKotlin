@@ -6,10 +6,11 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
 import io.reactivex.processors.PublishProcessor
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 
 class RxCallbackImpl(private val logger: Logger?) : RxBluetoothGatt.Callback() {
-    override val onConnectionState = PublishSubject.create<ConnectionState>()
+    override val onConnectionState = BehaviorSubject.create<ConnectionState>()
     override val onRemoteRssiRead = PublishSubject.create<RSSI>()
     override val onServicesDiscovered = PublishSubject.create<Status>()
     override val onMtuChanged = PublishSubject.create<MTU>()

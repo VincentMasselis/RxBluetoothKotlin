@@ -32,6 +32,7 @@ interface RxBluetoothGatt {
      */
     abstract class Callback : BluetoothGattCallback() {
 
+        /** Unlike the other [Observable]s this one MUST emit a subscription if a value is known */
         abstract val onConnectionState: Observable<ConnectionState>
 
         abstract val onRemoteRssiRead: Observable<RSSI>

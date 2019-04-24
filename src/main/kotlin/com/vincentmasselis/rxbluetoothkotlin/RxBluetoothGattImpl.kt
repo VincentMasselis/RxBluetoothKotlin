@@ -67,7 +67,7 @@ class RxBluetoothGattImpl(
                 .toObservable(context)
                 .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
                 .startWith(
-                    if ((context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                    if (bluetoothManager.adapter.isEnabled)
                         BluetoothAdapter.STATE_ON
                     else
                         BluetoothAdapter.STATE_OFF
@@ -616,6 +616,6 @@ class RxBluetoothGattImpl(
             }
 
     companion object {
-        private const val TAG = "RxBluetoothGatt"
+        private const val TAG = "RxBluetoothGattImpl"
     }
 }
