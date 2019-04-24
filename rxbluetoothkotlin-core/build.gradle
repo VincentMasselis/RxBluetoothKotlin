@@ -39,7 +39,7 @@ dependencies {
 }
 
 ext {
-    artifactId = 'rxbluetoothkotlin'
+    artifactId = 'rxbluetoothkotlin-core'
 }
 
 apply from: '../deploy.gradle'
