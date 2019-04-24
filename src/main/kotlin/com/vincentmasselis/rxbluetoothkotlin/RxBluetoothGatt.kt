@@ -1,44 +1,60 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.*
+import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt.Callback
 import io.reactivex.Flowable
 import io.reactivex.FlowableTransformer
 import io.reactivex.Maybe
 import io.reactivex.Observable
 
+/**
+ * Wrapper of a [BluetoothGatt] instance which adds useful reactive methods. Not all the methods from [BluetoothGatt] are written here, only them which requires asynchronous
+ * operations, fortunately you can still access to the system instance of [BluetoothGatt] by calling [source].
+ *
+ * Most of the methods here are listening to an instance of [Callback], so using a [Callback] decorator could change the behavior of a [RxBluetoothGatt] implementation, it
+ * could be useful but also very dangerous. Use the decorators wisely.
+ *
+ * The default implementation is [RxBluetoothGattImpl].
+ */
 interface RxBluetoothGatt {
 
     val source: BluetoothGatt
 
-    val rxCallback: RxCallback
+    val callback: Callback
 
-    interface RxCallback {
+    /**
+     * Wrapper of a [BluetoothGattCallback] but every of the method is replaced by [Observable]s. Every of the [Observable]s should be called when a method from
+     * [BluetoothGattCallback] is called by the system.
+     *
+     * The default implementation [RxCallbackImpl] exposes a basic example of implementation.
+     *
+     * @see RxCallbackImpl
+     */
+    abstract class Callback : BluetoothGattCallback() {
 
-        val source: BluetoothGattCallback
+        abstract val onConnectionState: Observable<ConnectionState>
 
-        val onConnectionState: Observable<ConnectionState>
+        abstract val onRemoteRssiRead: Observable<RSSI>
 
-        val onRemoteRssiRead: Observable<RSSI>
+        abstract val onServicesDiscovered: Observable<Status>
 
-        val onServicesDiscovered: Observable<Status>
+        abstract val onMtuChanged: Observable<MTU>
 
-        val onMtuChanged: Observable<MTU>
+        abstract val onPhyRead: Observable<PHY>
 
-        val onPhyRead: Observable<PHY>
+        abstract val onPhyUpdate: Observable<PHY>
 
-        val onPhyUpdate: Observable<PHY>
+        abstract val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        abstract val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        abstract val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
 
-        val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
+        abstract val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
 
-        val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
+        abstract val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
 
-        val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
-
-        val onReliableWriteCompleted: Observable<Status>
+        abstract val onReliableWriteCompleted: Observable<Status>
 
     }
 

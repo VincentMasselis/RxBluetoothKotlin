@@ -23,7 +23,7 @@ class RxBluetoothGattImpl(
     private val context: Context,
     private val logger: Logger?,
     override val source: BluetoothGatt,
-    override val rxCallback: RxBluetoothGatt.RxCallback
+    override val callback: RxBluetoothGatt.Callback
 ) : RxBluetoothGatt {
 
     // -------------------- Connection
@@ -41,7 +41,7 @@ class RxBluetoothGattImpl(
     private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = Observable
         .create<Unit> { downStream ->
             downStream.setDisposable(
-                rxCallback.onConnectionState
+                callback.onConnectionState
                     .subscribe { (newState, status) ->
                         if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                             // Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the
@@ -177,7 +177,7 @@ class RxBluetoothGattImpl(
     override fun readRemoteRssi(): Maybe<Int> =
         enqueue(::RssiDeviceDisconnected) {
             Single.create<RSSI> { downStream ->
-                downStream.setDisposable(rxCallback.onRemoteRssiRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                downStream.setDisposable(callback.onRemoteRssiRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                 logger?.v(TAG, "readRemoteRssi")
                 if (source.readRemoteRssi().not()) downStream.tryOnError(CannotInitialize.CannotInitializeRssiReading(source.device))
             }
@@ -205,7 +205,7 @@ class RxBluetoothGattImpl(
     override fun discoverServices(): Maybe<List<BluetoothGattService>> =
         enqueue(::DiscoverServicesDeviceDisconnected) {
             Single.create<Int> { downStream ->
-                downStream.setDisposable(rxCallback.onServicesDiscovered.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                downStream.setDisposable(callback.onServicesDiscovered.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                 logger?.v(TAG, "discoverServices")
                 if (source.discoverServices().not()) downStream.tryOnError(CannotInitialize.CannotInitializeServicesDiscovering(source.device))
             }
@@ -235,7 +235,7 @@ class RxBluetoothGattImpl(
         enqueue(::MtuDeviceDisconnected) {
             Single
                 .create<MTU> { downStream ->
-                    downStream.setDisposable(rxCallback.onMtuChanged.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onMtuChanged.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "requestMtu")
                     if (source.requestMtu(mtu).not()) downStream.tryOnError(CannotInitialize.CannotInitializeMtuRequesting(source.device))
                 }
@@ -267,7 +267,7 @@ class RxBluetoothGattImpl(
         enqueue(::ReadPhyDeviceDisconnected) {
             Single
                 .create<PHY> { downStream ->
-                    downStream.setDisposable(rxCallback.onPhyRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onPhyRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "readPhy")
                     source.readPhy()
                 }
@@ -300,7 +300,7 @@ class RxBluetoothGattImpl(
             , {
                 Single
                     .create<PHY> { downStream ->
-                        downStream.setDisposable(rxCallback.onPhyUpdate.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                        downStream.setDisposable(callback.onPhyUpdate.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                         logger?.v(TAG, "setPreferredPhy with txPhy ${connectionPhy.transmitter}, rxPhy ${connectionPhy.receiver} and phyOptions $phyOptions")
                         source.setPreferredPhy(connectionPhy.transmitter, connectionPhy.receiver, phyOptions)
                     }
@@ -329,7 +329,7 @@ class RxBluetoothGattImpl(
         enqueue({ device, status -> CharacteristicReadDeviceDisconnected(device, status, characteristic.service, characteristic) }
             , {
                 Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                    downStream.setDisposable(rxCallback.onCharacteristicRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onCharacteristicRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "readCharacteristic ${characteristic.uuid}")
                     if (source.readCharacteristic(characteristic).not())
                         downStream.tryOnError(
@@ -370,7 +370,7 @@ class RxBluetoothGattImpl(
         enqueue({ device, status -> CharacteristicWriteDeviceDisconnected(device, status, characteristic.service, characteristic, value) }
             , {
                 Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                    downStream.setDisposable(rxCallback.onCharacteristicWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onCharacteristicWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "writeCharacteristic ${characteristic.uuid} with value ${value.toHexString()}")
                     characteristic.value = value
                     if (source.writeCharacteristic(characteristic).not())
@@ -494,7 +494,7 @@ class RxBluetoothGattImpl(
     override fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic>
-    ): Flowable<ByteArray> = rxCallback
+    ): Flowable<ByteArray> = callback
         .onCharacteristicChanged
         .compose(composer)
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
@@ -528,7 +528,7 @@ class RxBluetoothGattImpl(
         enqueue({ device, status -> DescriptorReadDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor) }
             , {
                 Single.create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                    downStream.setDisposable(rxCallback.onDescriptorRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onDescriptorRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
                     if (source.readDescriptor(descriptor).not())
                         downStream.tryOnError(
@@ -582,7 +582,7 @@ class RxBluetoothGattImpl(
                         return@create
                     }
 
-                    downStream.setDisposable(rxCallback.onDescriptorWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+                    downStream.setDisposable(callback.onDescriptorWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
                     logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
                     descriptor.value = value
                     if (source.writeDescriptor(descriptor).not())

@@ -1,12 +1,14 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
-import android.bluetooth.*
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothProfile
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
 import io.reactivex.processors.PublishProcessor
 import io.reactivex.subjects.PublishSubject
 
-class RxCallbackImpl(private val logger: Logger?) : AbsRxCallback() {
-    override val source: BluetoothGattCallback = this
+class RxCallbackImpl(private val logger: Logger?) : RxBluetoothGatt.Callback() {
     override val onConnectionState = PublishSubject.create<ConnectionState>()
     override val onRemoteRssiRead = PublishSubject.create<RSSI>()
     override val onServicesDiscovered = PublishSubject.create<Status>()
@@ -91,6 +93,6 @@ class RxCallbackImpl(private val logger: Logger?) : AbsRxCallback() {
     }
 
     companion object {
-        private const val TAG = "RxBluetoothGatt.RxCallback"
+        private const val TAG = "RxCallbackImpl"
     }
 }
