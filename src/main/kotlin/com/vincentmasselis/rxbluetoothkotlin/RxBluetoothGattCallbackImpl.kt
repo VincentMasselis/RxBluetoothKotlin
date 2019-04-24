@@ -57,7 +57,7 @@ class RxBluetoothGattCallbackImpl(private val logger: Logger?) : RxBluetoothGatt
     override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
         logger?.v(
             TAG,
-            "onCharacteristicRead for characteristic ${characteristic.uuid}, value ${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
+            "onCharacteristicRead for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
         )
         onCharacteristicRead.onNext(characteristic to status)
     }
@@ -65,7 +65,7 @@ class RxBluetoothGattCallbackImpl(private val logger: Logger?) : RxBluetoothGatt
     override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
         logger?.v(
             TAG,
-            "onCharacteristicWrite for characteristic ${characteristic.uuid}, value ${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
+            "onCharacteristicWrite for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
         )
         onCharacteristicWrite.onNext(characteristic to status)
     }
@@ -73,18 +73,18 @@ class RxBluetoothGattCallbackImpl(private val logger: Logger?) : RxBluetoothGatt
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         logger?.v(
             TAG,
-            "onCharacteristicChanged for characteristic ${characteristic.uuid}, value ${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties}"
+            "onCharacteristicChanged for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties}"
         )
         onCharacteristicChanged.onNext(characteristic)
     }
 
     override fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-        logger?.v(TAG, "onDescriptorRead for descriptor ${descriptor.uuid}, value ${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
+        logger?.v(TAG, "onDescriptorRead for descriptor ${descriptor.uuid}, value 0x${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
         onDescriptorRead.onNext(descriptor to status)
     }
 
     override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-        logger?.v(TAG, "onDescriptorWrite for descriptor ${descriptor.uuid}, value ${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
+        logger?.v(TAG, "onDescriptorWrite for descriptor ${descriptor.uuid}, value 0x${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
         onDescriptorWrite.onNext(descriptor to status)
     }
 
