@@ -23,7 +23,7 @@ private const val TAG = "BluetoothDevice+rx"
  * @param logger Set a [logger] to log every event which occurs from the BLE API (connections, writes, notifications, MTU, missing permissions, etc...).
  * @param rxGattConstructor Defaults uses a [RxBluetoothGattImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
  * [RxBluetoothGatt] and the system.
- * @param callbackConstructor Defaults uses a [RxCallbackImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
+ * @param callbackConstructor Defaults uses a [RxBluetoothGattCallbackImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
  * [RxBluetoothGatt.Callback] and the system.
  *
  * @return
@@ -56,7 +56,7 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectR
             throw BluetoothIsTurnedOff()
         }
 
-        val callbacks = callbackConstructor?.invoke() ?: RxCallbackImpl(logger) as T
+        val callbacks = callbackConstructor?.invoke() ?: RxBluetoothGattCallbackImpl(logger) as T
 
         logger?.v(TAG, "connectGatt with app $app and autoConnect $autoConnect")
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(app, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)

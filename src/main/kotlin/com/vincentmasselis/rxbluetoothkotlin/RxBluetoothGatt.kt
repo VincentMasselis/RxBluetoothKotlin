@@ -26,9 +26,9 @@ interface RxBluetoothGatt {
      * Wrapper of a [BluetoothGattCallback] but every of the method is replaced by [Observable]s. Every of the [Observable]s should be called when a method from
      * [BluetoothGattCallback] is called by the system.
      *
-     * The default implementation [RxCallbackImpl] exposes a basic example of implementation.
+     * The default implementation [RxBluetoothGattCallbackImpl] exposes a basic example of implementation.
      *
-     * @see RxCallbackImpl
+     * @see RxBluetoothGattCallbackImpl
      */
     abstract class Callback : BluetoothGattCallback() {
 
