@@ -102,8 +102,6 @@ When your decorators are written you can send them to RxBluetoothKotlin by addin
 
 - Link to our twitter, github issues
 
-- Code snippet to integrate with gradle
-
 - More test
 
 - Getting started
