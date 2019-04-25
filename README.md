@@ -78,16 +78,16 @@ On Android, communicating with a Bluetooth device requires an instance of `Bluet
 
 The following diagram will show you which classes are used to create the decorator pattern:
 
-![UML Class diagram](http://yuml.me/04a00d2e.svg)
+![UML Class diagram](http://yuml.me/63d484c6.svg)
 
 [comment]: <> (Used syntax 
 """
-[BluetoothGatt{bg:cornsilk}]<1-<>[RxBluetoothGatt{bg:lavender}]
-[RxBluetoothGatt]^-.-[RxBluetoothGattImpl{bg:lavender}]
-[RxBluetoothGatt]^-.-[SimpleRxBluetoothGatt{bg:lavender}]
-[RxBluetoothGatt]<1-<>[SimpleRxBluetoothGatt]
+[BluetoothGatt{bg:cornsilk}]<1-<>[<<RxBluetoothGatt>>{bg:lavender}]
+[<<RxBluetoothGatt>>]^-.-[RxBluetoothGattImpl{bg:lavender}]
+[<<RxBluetoothGatt>>]^-.-[SimpleRxBluetoothGatt{bg:lavender}]
+[<<RxBluetoothGatt>>]<1-<>[SimpleRxBluetoothGatt]
 [SimpleRxBluetoothGatt]^-[An other Decorator{bg:lightblue}]
-[SimpleRxBluetoothGatt]^-[Your Decorator{bg:lightblue}]
+[SimpleRxBluetoothGatt]^-[Your Decorator{bg:lightblue}]lue}]
 """
 On this website `https://yuml.me/diagram/scruffy/class/draw`
 )
