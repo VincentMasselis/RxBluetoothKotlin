@@ -1,3 +1,6 @@
+[ ![Download](https://api.bintray.com/packages/vincentmasselis/maven/rx-ui-kotlin/images/download.svg) ](https://bintray.com/vincentmasselis/maven/rx-ui-kotlin/_latestVersion)
+[![Build Status](https://app.bitrise.io/app/94c2826fa7361333/status.svg?token=dAysx6Rt7j8iL29CFZlzGQ&branch=master)](https://app.bitrise.io/app/94c2826fa7361333)
+
 # RxBluetoothKotlin
 Android + BLE + Kotlin + RxJava2
 
