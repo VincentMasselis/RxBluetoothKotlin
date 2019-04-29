@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.vincentmasselis.rxbluetoothkotlin.decorator.CallbackLogger
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -39,8 +40,8 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
     app: Application,
     autoConnect: Boolean = false,
     logger: Logger? = null,
-    callbackConstructor: (() -> T)? = null,
-    rxGattConstructor: ((BluetoothGatt, T) -> E)? = null
+    callbackConstructor: (() -> T) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T },
+    rxGattConstructor: ((BluetoothGatt, T) -> E) = { gatt, callbacks -> RxBluetoothGattImpl(app, logger, gatt, callbacks) as E }
 ): Single<E> = Single
     .fromCallable<E> {
 
@@ -56,7 +57,7 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
             throw BluetoothIsTurnedOff()
         }
 
-        val callbacks = callbackConstructor?.invoke() ?: RxBluetoothGattCallbackImpl(logger) as T
+        val callbacks = callbackConstructor()
 
         logger?.v(TAG, "connectGatt with app $app and autoConnect $autoConnect")
         val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(app, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)
@@ -67,7 +68,7 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
             throw NullBluetoothGatt()
         }
 
-        return@fromCallable rxGattConstructor?.invoke(gatt, callbacks) ?: RxBluetoothGattImpl(app, logger, gatt, callbacks) as E
+        return@fromCallable rxGattConstructor(gatt, callbacks)
     }
     .subscribeOn(AndroidSchedulers.mainThread())
 
@@ -76,6 +77,6 @@ fun BluetoothDevice.connectRxGatt(
     app: Application,
     autoConnect: Boolean = false,
     logger: Logger? = null,
-    callbackConstructor: (() -> RxBluetoothGatt.Callback)? = null,
-    rxGattConstructor: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt)? = null
+    callbackConstructor: (() -> RxBluetoothGatt.Callback) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } },
+    rxGattConstructor: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks -> RxBluetoothGattImpl(app, logger, gatt, callbacks) }
 ) = connectTypedRxGatt(app, autoConnect, logger, callbackConstructor, rxGattConstructor)
