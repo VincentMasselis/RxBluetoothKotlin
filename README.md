@@ -6,6 +6,8 @@ Android + BLE + Kotlin + RxJava2
 
 Made with love at the [Equisense](http://equisense.com) HQ. This library is used in our [Equisense app](https://play.google.com/store/apps/details?id=com.equisense.motions).
 
+Looking for BLE with Coroutines instead of Rx ? Take a look at the [LouisCAD's implementation](https://github.com/Beepiz/BleGattCoroutines).
+
 ## TL/DR
 
 `implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.0.0'`
@@ -72,10 +74,9 @@ All the 3 uniques exceptions are containing the required data to understand why 
 ## Decorator patter
 ⚠ Before reading this part, you must know how a [Decorator design pattern](https://en.wikipedia.org/wiki/Decorator_pattern) works and how to make a new one.
 
-On Android, communicating with a Bluetooth device requires an instance of `BluetoothGatt` and an instance of `BluetoothGattCallback`. RxBluetoothKotlin wraps both of theses types into `RxBluetoothGatt` and `RxBluetoothGatt.Callback` types to add some reactive touch to the system objects. Because `RxBluetoothGatt` is an interface and `BluetoothGattCallback` an abstract class, calling `connectRxGatt` will return a default implentation for both. You are free to wrap the returned `RxBluetoothGatt` implementation and update the original object by adding you own behavior, you only have to follow the Decorator rules.
+On Android, communicating with a Bluetooth device requires an instance of `BluetoothGatt` and an instance of `BluetoothGattCallback`. RxBluetoothKotlin wraps both of theses types into `RxBluetoothGatt` and `RxBluetoothGatt.Callback` types to add some reactive touch to the system objects. Because `RxBluetoothGatt` is an interface and `BluetoothGattCallback` an abstract class, calling `connectRxGatt` will return a default implentation for both of them. You are free to wrap the returned `RxBluetoothGatt` implementation and update the original object by adding you own behavior, you only have to follow the Decorator rules.
 
 ### Decorate RxBluetoothGatt
-
 The following diagram will show you which classes are used to create the decorator pattern:
 
 ![UML Class diagram](http://yuml.me/63d484c6.svg)
@@ -95,6 +96,9 @@ On this website `https://yuml.me/diagram/scruffy/class/draw`
 As you can see, to create a decorator, you only have to subclass `SimpleRxBluetoothGatt`. If you wan to decorate `RxBluetoothGatt.Callback` simply subclass `SimpleRxBluetoothGatt` like you do with `SimpleRxBluetoothGatt`.
 
 When your decorators are written you can send them to RxBluetoothKotlin by adding `callbackConstructor` and `rxGattConstructor` parameters when calling `connectRxGatt`. Defaults implentation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
+
+## Report an issue
+https://github.com/VincentMasselis/RxBluetoothKotlin/issues
 
 //TODO 
 
