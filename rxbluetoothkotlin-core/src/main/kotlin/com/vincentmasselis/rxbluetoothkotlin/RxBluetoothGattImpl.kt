@@ -12,9 +12,9 @@ import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.functions.Function
 import java.util.*
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
@@ -33,10 +33,14 @@ class RxBluetoothGattImpl(
     /**
      * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
      *
-     * It call [exceptionConverter] when a disconnection an unexpected exception is fired and throws the result in the [Observable].
-     * In can throw [ExceptedDisconnectionException] and [BluetoothIsTurnedOff].
+     * It emit `onNext` only once, `onError` and `onComplete` are called only when the device disconnects.
      *
-     * It never completes.
+     * @return
+     * onNext with [Unit] when the connection is ready
+     *
+     * onComplete when the connection is closed by the user
+     *
+     * onError with [BluetoothIsTurnedOff] or the result of [exceptionConverter] when a unexpected disconnection occurs
      */
     private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = Observable
         .create<Unit> { downStream ->
@@ -57,7 +61,7 @@ class RxBluetoothGattImpl(
                             if (status != BluetoothGatt.GATT_SUCCESS)
                                 downStream.tryOnError(exceptionConverter(source.device, status))
                             else
-                                downStream.tryOnError(ExceptedDisconnectionException())
+                                downStream.onComplete()
                         else if (status != BluetoothGatt.GATT_SUCCESS)
                             downStream.tryOnError(exceptionConverter(source.device, status))
                     })
@@ -98,12 +102,7 @@ class RxBluetoothGattImpl(
      *
      * @see BluetoothGattCallback.onConnectionStateChange
      */
-    override fun livingConnection(): Observable<Unit> =
-        livingConnection(DeviceDisconnected::SimpleDeviceDisconnected)
-            .onErrorResumeNext(Function {
-                if (it is ExceptedDisconnectionException) Observable.empty()
-                else Observable.error(it)
-            })
+    override fun livingConnection(): Observable<Unit> = livingConnection(DeviceDisconnected::SimpleDeviceDisconnected)
 
     // -------------------- I/O Tools
 
@@ -119,41 +118,40 @@ class RxBluetoothGattImpl(
      * [sourceSingle] a single which contains a [BluetoothGatt] I/O operation to do.
      */
     private fun <R> enqueue(exception: (device: BluetoothDevice, status: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
-        val downStreamDisp = CompositeDisposable()
-
-        downstream.setDisposable(downStreamDisp)
-
         executor.submit {
             semaphore.acquire()
 
-            if (downStreamDisp.isDisposed) {
+            if (downstream.isDisposed) {
                 semaphore.release()
                 return@submit
             }
 
-            Observable
-                .defer { livingConnection(exception) }
-                .observeOn(AndroidSchedulers.mainThread())
+            val livingConnection = Observable.defer { livingConnection(exception) }.replay(1).refCount()
+
+            livingConnection
                 .flatMapSingle {
                     sourceSingle()
-                        // Value is set to 1 minute because some devices take a long time to detect
-                        // when the connection is lost. For example, we saw up to 16 seconds on a
-                        // Nexus 4 between the last call to write and the moment when the system
-                        // fallback the disconnection.
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        // Value is set to 1 minute because some devices take a long time to detect when the connection is lost. For example, we saw up to 16 seconds on a Nexus 4
+                        // between the last call to write and the moment when the system fallback the disconnection.
                         .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
+                        // I force `sourceSingle` to terminate when livingConnection completes. Without this, the `onComplete` message is delayed until `sourceSingle` has finished
+                        // his work which could never appends because the device is disconnected.
+                        .takeUntil(livingConnection.ignoreElements())
                 }
                 .onErrorResumeNext(Function {
-                    if (it is ExceptedDisconnectionException)
-                        Observable.empty()
-                    else
-                        Observable.error(it)
+                    // Error fired when `sourceSingle` is stopped by an `onComplete` signal from `livingConnection`. See the `Single.takeUntil(Completable)` doc.
+                    if (it is CancellationException) Observable.empty()
+                    else Observable.error(it)
                 })
                 .firstElement()
                 .doAfterTerminate { semaphore.release() }
+                // Do NOT replace by `.subscribe(downstream)`. By doing this, the downstream could cancel the current operation and `semaphore.release()` will never be called.
+                // Furthermore, it's impossible to cancel an bluetooth I/O operation, so, even if the downstream is not listening for values, you must continue to listen for the end
+                // of the operation before releasing the `semaphore`. If not, you could start a new operation before the current has finished which fires exceptions.
                 .subscribe({ downstream.onSuccess(it) },
                     { downstream.tryOnError(it) },
                     { downstream.onComplete() })
-
         }
     }
 
@@ -466,7 +464,7 @@ class RxBluetoothGattImpl(
                         downStream.onSuccess(Unit)
                 }
             })
-            .flatMap { _ ->
+            .flatMap {
                 val notificationDescriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
                 if (notificationDescriptor == null)
                     Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
@@ -501,10 +499,6 @@ class RxBluetoothGattImpl(
         .map { it.value }
         .takeUntil(
             livingConnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
-                .onErrorResumeNext(Function {
-                    if (it is ExceptedDisconnectionException) Observable.empty()
-                    else Observable.error(it)
-                })
                 .ignoreElements()
                 .andThen(Flowable.just(Unit))
         )
