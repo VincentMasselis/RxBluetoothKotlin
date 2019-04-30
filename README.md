@@ -4,9 +4,11 @@
 # RxBluetoothKotlin
 Android + BLE + Kotlin + RxJava2
 
-Made with love at the [Equisense](http://equisense.com) HQ. This library is used in our [Equisense app](https://play.google.com/store/apps/details?id=com.equisense.motions).
+Bluetooth Low Energy on Android made easy with RxJava.
 
-Looking for BLE with Coroutines instead of Rx ? Take a look at the [LouisCAD's implementation](https://github.com/Beepiz/BleGattCoroutines).
+Made with love at the [Equisense](http://equisense.com) HQ. This library is used in our [Equisense app](https://play.google.com/store/apps/details?id=com.equisense.motions) since years.
+
+Looking for BLE with Coroutines instead of RxJava ? Take a look at the [LouisCAD's implementation](https://github.com/Beepiz/BleGattCoroutines).
 
 ## TL/DR
 
@@ -98,13 +100,15 @@ As you can see, to create a decorator, you only have to subclass `SimpleRxBlueto
 When your decorators are written you can send them to RxBluetoothKotlin by adding `callbackConstructor` and `rxGattConstructor` parameters when calling `connectRxGatt`. Defaults implentation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
 
 ## Report an issue
-https://github.com/VincentMasselis/RxBluetoothKotlin/issues
+
+## Links
+Report an issue by using [github](https://github.com/VincentMasselis/RxBluetoothKotlin/issues)
+
+Follow me on Twitter [@VincentMsls](https://twitter.com/VincentMsls)
+
+Discover our [Equisense sensors](https://equisense.com)
 
 //TODO 
-
-- Short description
-
-- Link to our twitter, github issues
 
 - More test
 
