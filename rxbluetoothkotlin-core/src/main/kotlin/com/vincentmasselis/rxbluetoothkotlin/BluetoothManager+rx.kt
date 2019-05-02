@@ -174,7 +174,11 @@ fun BluetoothManager.rxScan(
                     disposables.dispose()
                     Handler(Looper.getMainLooper()).post {
                         logger?.v(TAG, "rxScan(), stopScan()")
-                        scanner.stopScan(callback)
+                        try {
+                            scanner.stopScan(callback)
+                        } catch (e: IllegalStateException) {
+                            // IllegalStateException is fired is stop scan is called while the bluetooth is already turned off
+                        }
                     }
                 }
             }, BackpressureStrategy.BUFFER)
