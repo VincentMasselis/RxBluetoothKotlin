@@ -1,4 +1,4 @@
-package com.vincentmasselis.app
+package com.vincentmasselis.devapp
 
 import io.reactivex.Completable
 import io.reactivex.Flowable

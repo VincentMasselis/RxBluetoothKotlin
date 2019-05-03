@@ -1,4 +1,4 @@
-package com.vincentmasselis.app
+package com.vincentmasselis.devapp
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

@@ -1,4 +1,4 @@
-package com.vincentmasselis.app
+package com.vincentmasselis.devapp
 
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
 import junit.framework.Assert.assertEquals

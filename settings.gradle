@@ -1,1 +1,1 @@
-include ':app' , ':rxbluetoothkotlin-core'
+include ':dev-app', ':rxbluetoothkotlin-core'
