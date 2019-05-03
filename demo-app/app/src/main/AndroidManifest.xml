@@ -5,6 +5,7 @@
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
+
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
@@ -14,7 +15,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="com.vincentmasselis.demoapp.MainActivity">
+        <activity
+            android:name=".DeviceActivity"
+            android:label="@string/title_activity_device" />
+        <activity
+            android:name=".ScanActivity"
+            android:label="@string/title_activity_scan">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

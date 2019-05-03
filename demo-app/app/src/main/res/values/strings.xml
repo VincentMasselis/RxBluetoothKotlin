@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">demoapp</string>
+    <string name="title_activity_scan">ScanActivity</string>
+    <string name="title_activity_device">DeviceActivity</string>
 </resources>

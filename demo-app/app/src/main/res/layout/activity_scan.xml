@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity"
+    tools:context=".ScanActivity"
     tools:ignore="HardcodedText">
 
     <Button
@@ -33,5 +33,33 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+
+    <Button
+        android:id="@+id/stop_scan_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:layout_marginEnd="24dp"
+        android:text="Stop Scan"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/scanning_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="scan_recycler_view,stop_scan_button" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/start_scan_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="scanning_text_view" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/not_scanning_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="start_scan_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

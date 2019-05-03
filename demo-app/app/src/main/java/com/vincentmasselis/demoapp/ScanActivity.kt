@@ -17,49 +17,63 @@ import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.Disposable
 import io.reactivex.subjects.BehaviorSubject
-import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.activity_scan.*
 import java.util.concurrent.TimeUnit
 
-class MainActivity : AppCompatActivity() {
+class ScanActivity : AppCompatActivity() {
 
     private var currentState = BehaviorSubject.createDefault<States>(States.NotScanning)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_scan)
 
         currentState
             .distinctUntilChanged()
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe {
-                @Suppress("UNREACHABLE_CODE") val ignoreMe = when (it) {
+                @Suppress("UNUSED_VARIABLE") val ignoreMe = when (it) {
                     States.NotScanning -> {
-                        start_scan_button.visibility = View.VISIBLE
-                        scanning_text_view.visibility = View.GONE
-                        scan_recycler_view.visibility = View.GONE
+                        not_scanning_group.visibility = View.VISIBLE
+                        start_scan_group.visibility = View.GONE
+                        scanning_group.visibility = View.GONE
                     }
                     States.StartingScan -> {
-                        start_scan_button.visibility = View.GONE
-                        scanning_text_view.visibility = View.VISIBLE
-                        scan_recycler_view.visibility = View.GONE
+                        not_scanning_group.visibility = View.GONE
+                        start_scan_group.visibility = View.VISIBLE
+                        scanning_group.visibility = View.GONE
                     }
                     States.Scanning -> {
-                        start_scan_button.visibility = View.GONE
-                        scanning_text_view.visibility = View.GONE
-                        scan_recycler_view.visibility = View.VISIBLE
+                        not_scanning_group.visibility = View.GONE
+                        start_scan_group.visibility = View.GONE
+                        scanning_group.visibility = View.VISIBLE
                     }
                 }
             }
             .disposeOnState(ActivityState.DESTROY, this)
 
         scan_recycler_view.layoutManager = LinearLayoutManager(this)
-        scan_recycler_view.adapter = ScanResultAdapter(layoutInflater)
+        scan_recycler_view.adapter = ScanResultAdapter(layoutInflater, scan_recycler_view)
 
         start_scan_button.clicks()
             .subscribe { startScan() }
             .disposeOnState(ActivityState.DESTROY, this)
+
+        stop_scan_button.clicks()
+            .subscribe {
+                scanDisp?.dispose()
+                currentState.onNext(States.NotScanning)
+            }
+            .disposeOnState(ActivityState.DESTROY, this)
     }
+
+    override fun onDestroy() {
+        scan_recycler_view.adapter = null
+        super.onDestroy()
+    }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -75,25 +89,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var scanDisp: Disposable? = null
     private fun startScan() {
         currentState.onNext(States.StartingScan)
-        (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager)
+        scanDisp = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan(this, flushEvery = 1L to TimeUnit.SECONDS)
             .doOnNext { currentState.onNext(States.Scanning) }
+            .observeOn(AndroidSchedulers.mainThread())
             .subscribe({
                 (scan_recycler_view.adapter as ScanResultAdapter).append(it)
             }, {
                 currentState.onNext(States.NotScanning)
                 when (it) {
-                    is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this).setTitle("The current device doesn't support bluetooth le").show()
+                    is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this).setMessage("The current device doesn't support bluetooth le").show()
                     is NeedLocationPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
                         requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_CODE_COARSE_LOCATION)
-                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setTitle("Bluetooth is turned off").show()
+                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
                     is LocationServiceDisabled -> startActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQUEST_CODE_ENABLE_LOCATION)
-                    else -> AlertDialog.Builder(this).setTitle("Error occurred: $it").show()
+                    else -> AlertDialog.Builder(this).setMessage("Error occurred: $it").show()
                 }
             })
-            .disposeOnState(ActivityState.DESTROY, this)
+            .disposeOnState(ActivityState.PAUSE, this)
     }
 
     private sealed class States {
