@@ -12,7 +12,12 @@ Looking for BLE with Coroutines instead of RxJava ? Take a look at the [LouisCAD
 
 ## TL/DR
 
-`implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.0.1'`
+```groovy
+implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.0.1'
+
+// Add this use the scanner
+implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
+```
 
 ### Scan
 ```kotlin
