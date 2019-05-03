@@ -105,8 +105,6 @@ As you can see, to create a decorator, you only have to subclass `SimpleRxBlueto
 
 When your decorators are written you can send them to RxBluetoothKotlin by adding `callbackConstructor` and `rxGattConstructor` parameters when calling `connectRxGatt`. Defaults implentation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
 
-## Report an issue
-
 ## Links
 Report an issue by using [github](https://github.com/VincentMasselis/RxBluetoothKotlin/issues)
 
