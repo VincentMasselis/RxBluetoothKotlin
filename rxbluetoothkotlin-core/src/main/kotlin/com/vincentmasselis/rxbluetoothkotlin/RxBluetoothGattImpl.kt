@@ -20,7 +20,6 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 class RxBluetoothGattImpl(
-    private val context: Context,
     private val logger: Logger?,
     override val source: BluetoothGatt,
     override val callback: RxBluetoothGatt.Callback
@@ -28,7 +27,7 @@ class RxBluetoothGattImpl(
 
     // -------------------- Connection
 
-    private val bluetoothManager by lazy { context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
+    private val bluetoothManager by lazy { ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
 
     /**
      * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
@@ -68,7 +67,7 @@ class RxBluetoothGattImpl(
         }
         .takeUntil( // Forward the [BluetoothIsTurnedOff] exception to livingConnection when it occurs
             IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-                .toObservable(context)
+                .toObservable(ContextHolder.context)
                 .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
                 .startWith(
                     if (bluetoothManager.adapter.isEnabled)

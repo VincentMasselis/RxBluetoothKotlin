@@ -37,9 +37,14 @@ dependencies {
     androidTestImplementation 'io.reactivex.rxjava2:rxkotlin:2.3.0'
     androidTestImplementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
 
+
+    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.0-alpha-1'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'androidx.appcompat:appcompat:1.0.2'
-    implementation 'androidx.core:core-ktx:1.0.1'
+    implementation 'androidx.core:core-ktx:1.0.2'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.8'
+    implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
+    implementation 'com.vincentmasselis.rxuikotlin:rxuikotlin-core:1.2.0'
 
     implementation project(':rxbluetoothkotlin-core')
 }

@@ -15,6 +15,7 @@ import android.os.Build.VERSION_CODES.O_MR1
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -27,7 +28,7 @@ private const val TAG = "BluetoothManager+rx"
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
- * @param context is used to listen bluetooth changes and check the app has the required permissions.
+ * @param context is used to listen bluetooth changes and check the context has the required permissions.
  *
  * @param scanArgs If [scanArgs] param is not null, the method [android.bluetooth.le.BluetoothLeScanner.startScan] with 3 params will be called instead of the one with 1 param.
  *
@@ -53,7 +54,6 @@ private const val TAG = "BluetoothManager+rx"
  * @see [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults]
  */
 fun BluetoothManager.rxScan(
-    context: Context,
     scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,
     flushEvery: Pair<Long, TimeUnit>? = null,
     logger: Logger? = null
@@ -61,12 +61,12 @@ fun BluetoothManager.rxScan(
     Completable
         .defer {
             when {
-                adapter == null || context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE).not() -> {
+                adapter == null || ContextHolder.context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE).not() -> {
                     logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
                     return@defer Completable.error(DeviceDoesNotSupportBluetooth())
                 }
-                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
+                ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                        ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
                     logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
                     return@defer Completable.error(NeedLocationPermission())
                 }
@@ -75,7 +75,7 @@ fun BluetoothManager.rxScan(
                     return@defer Completable.error(BluetoothIsTurnedOff())
                 }
                 SDK_INT >= Build.VERSION_CODES.M &&
-                        (context.getSystemService(Context.LOCATION_SERVICE) as LocationManager).let { locationManager ->
+                        (ContextHolder.context.getSystemService(Context.LOCATION_SERVICE) as LocationManager).let { locationManager ->
                             locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
                         } -> {
                     logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
@@ -103,7 +103,7 @@ fun BluetoothManager.rxScan(
                 val disposables = CompositeDisposable()
 
                 IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-                    .toObservable(context)
+                    .toObservable(ContextHolder.context)
                     .subscribe { (_, intent) ->
                         when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
                             BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(BluetoothIsTurnedOff())
@@ -168,6 +168,7 @@ fun BluetoothManager.rxScan(
                                 it
                             )
                         })
+                        .let { disposables.add(it) }
                 }
 
                 downStream.setCancellable {

@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
-    <application />
+    <application>
+        <provider
+            android:name=".internal.RxBluetoothKotlinContextSniffer"
+            android:authorities="${applicationId}.rxbluetoothkotlin-context-sniffer"
+            android:exported="false" />
+    </application>
 
 </manifest>

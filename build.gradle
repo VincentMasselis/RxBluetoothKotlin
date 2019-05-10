@@ -36,5 +36,5 @@ task clean(type: Delete) {
 ext {
     versionCode = "$System.env.BITRISE_BUILD_NUMBER"
     groupId = 'com.vincentmasselis.rxbluetoothkotlin'
-    libVersion = "1.0.1"
+    libVersion = "1.1.0"
 }

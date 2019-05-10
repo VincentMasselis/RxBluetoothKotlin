@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.decorator.CallbackLogger
+import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -36,20 +37,20 @@ private const val TAG = "BluetoothDevice+rx"
  */
 @Suppress("UNCHECKED_CAST")
 fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
-    context: Context,
     autoConnect: Boolean = false,
     logger: Logger? = null,
     callbackConstructor: (() -> T) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T },
-    rxGattConstructor: ((BluetoothGatt, T) -> E) = { gatt, callbacks -> RxBluetoothGattImpl(context, logger, gatt, callbacks) as E }
+    rxGattConstructor: ((BluetoothGatt, T) -> E) = { gatt, callbacks -> RxBluetoothGattImpl(logger, gatt, callbacks) as E }
 ): Single<E> = Single
     .fromCallable<E> {
 
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")
             throw NeedLocationPermission()
         }
 
-        val btState = if ((context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled) BluetoothAdapter.STATE_ON else BluetoothAdapter.STATE_OFF
+        val btState =
+            if ((ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled) BluetoothAdapter.STATE_ON else BluetoothAdapter.STATE_OFF
 
         if (btState == BluetoothAdapter.STATE_OFF) {
             logger?.v(TAG, "Bluetooth is off")
@@ -58,9 +59,9 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
 
         val callbacks = callbackConstructor()
 
-        logger?.v(TAG, "connectGatt with context $context and autoConnect $autoConnect")
-        val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(context, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)
-        else connectGatt(context, autoConnect, callbacks)
+        logger?.v(TAG, "connectGatt with autoConnect $autoConnect")
+        val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(ContextHolder.context, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)
+        else connectGatt(ContextHolder.context, autoConnect, callbacks)
 
         if (gatt == null) {
             logger?.v(TAG, "connectGatt method returned null")
@@ -73,9 +74,8 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
 
 /** @see connectTypedRxGatt */
 fun BluetoothDevice.connectRxGatt(
-    context: Context,
     autoConnect: Boolean = false,
     logger: Logger? = null,
     callbackConstructor: (() -> RxBluetoothGatt.Callback) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } },
-    rxGattConstructor: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks -> RxBluetoothGattImpl(context, logger, gatt, callbacks) }
-) = connectTypedRxGatt(context, autoConnect, logger, callbackConstructor, rxGattConstructor)
+    rxGattConstructor: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks -> RxBluetoothGattImpl(logger, gatt, callbacks) }
+) = connectTypedRxGatt(autoConnect, logger, callbackConstructor, rxGattConstructor)

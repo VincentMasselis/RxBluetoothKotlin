@@ -19,7 +19,7 @@ import java.util.*
 @RunWith(AndroidJUnit4::class)
 class EnqueueUnitTest {
 
-    @get:Rule val mainActivityRule = ActivityTestRule(MainActivity::class.java, true, false)
+    @get:Rule val mainActivityRule = ActivityTestRule(TestActivity::class.java, true, false)
 
     private object Logger : com.vincentmasselis.rxbluetoothkotlin.Logger {
         override fun v(tag: String, message: String, throwable: Throwable?) {
@@ -52,10 +52,10 @@ class EnqueueUnitTest {
     fun queueTest() {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
-            .rxScan(activity)
+            .rxScan()
             .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
             .firstElement()
-            .flatMapSingleElement { it.device.connectRxGatt(activity.application, logger = Logger) }
+            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
             .flatMap { gatt ->
