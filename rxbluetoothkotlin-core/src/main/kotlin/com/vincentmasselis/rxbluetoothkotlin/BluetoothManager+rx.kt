@@ -28,8 +28,6 @@ private const val TAG = "BluetoothManager+rx"
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
- * @param context is used to listen bluetooth changes and check the context has the required permissions.
- *
  * @param scanArgs If [scanArgs] param is not null, the method [android.bluetooth.le.BluetoothLeScanner.startScan] with 3 params will be called instead of the one with 1 param.
  *
  * @param flushEvery If [flushEvery] is not null, [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults] will be called repeatedly with the specified delay until the
@@ -87,16 +85,21 @@ fun BluetoothManager.rxScan(
         }
         .andThen(
             Flowable.create<ScanResult>({ downStream ->
+
+                // Used to prevent memory leaks
+                var safeDownStream = downStream as FlowableEmitter<ScanResult>?
+
                 val callback = object : ScanCallback() {
+
                     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
                     override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
-                        downStream.onNext(result)
+                        safeDownStream?.onNext(result)
                     }
 
                     override fun onScanFailed(errorCode: Int) {
                         val error = ScanFailedException(errorCode)
                         logger?.v(TAG, "rxScan(), error ScanFailedException : $error")
-                        downStream.tryOnError(error)
+                        safeDownStream?.tryOnError(error)
                     }
                 }
 
@@ -172,6 +175,7 @@ fun BluetoothManager.rxScan(
                 }
 
                 downStream.setCancellable {
+                    safeDownStream = null
                     disposables.dispose()
                     Handler(Looper.getMainLooper()).post {
                         logger?.v(TAG, "rxScan(), stopScan()")
