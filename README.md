@@ -106,7 +106,7 @@ The following diagram will show you which classes are used to create the decorat
 On this website `https://yuml.me/diagram/scruffy/class/draw`
 )
 
-As you can see, to create a decorator, you only have to subclass `SimpleRxBluetoothGatt`. If you wan to decorate `RxBluetoothGatt.Callback` simply subclass `SimpleRxBluetoothGatt` like you do with `SimpleRxBluetoothGatt`.
+As you can see, to create a decorator, you only have to subclass `SimpleRxBluetoothGatt`. If you want to decorate `RxBluetoothGatt.Callback` simply subclass `SimpleRxBluetoothGatt` like you do with `SimpleRxBluetoothGatt`.
 
 When your decorators are written you can send them to RxBluetoothKotlin by adding `callbackConstructor` and `rxGattConstructor` parameters when calling `connectRxGatt`. Defaults implentation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
 
