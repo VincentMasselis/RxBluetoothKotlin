@@ -23,13 +23,13 @@ implementation 'io.reactivex.rxjava2:rxjava:2.2.8'
 ### Scan
 ```kotlin
 val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-bluetoothManager.rxScan(context)
+bluetoothManager.rxScan()
   .subscribe { scanResult ->
   }
 ```
 ### Connect
 ```kotlin
-bluetoothDevice.connectRxGatt(context)
+bluetoothDevice.connectRxGatt()
   .flatMapMaybe { gatt -> gatt.whenConnectionIsReady() }
   .subsribe { rxBluetoothGatt ->
   }
