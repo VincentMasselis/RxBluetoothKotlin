@@ -30,7 +30,7 @@ bluetoothManager.rxScan()
 ### Connect
 ```kotlin
 bluetoothDevice.connectRxGatt()
-  .flatMapMaybe { gatt -> gatt.whenConnectionIsReady() }
+  .flatMapMaybe { gatt -> gatt.whenConnectionIsReady().map { gatt } }
   .subsribe { rxBluetoothGatt ->
   }
 ```
