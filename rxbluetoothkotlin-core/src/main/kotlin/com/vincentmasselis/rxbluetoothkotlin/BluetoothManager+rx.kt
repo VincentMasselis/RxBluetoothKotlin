@@ -134,7 +134,7 @@ fun BluetoothManager.rxScan(
                 }
 
                 @SuppressLint("NewApi")
-                if (SDK_INT >= O_MR1) {
+                if (SDK_INT == O_MR1) {
                     Single
                         .fromCallable {
                             //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
