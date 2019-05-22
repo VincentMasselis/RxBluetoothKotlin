@@ -1,15 +1,14 @@
 package com.vincentmasselis.devapp
 
-import io.reactivex.Completable
-import io.reactivex.Flowable
-import io.reactivex.Observable
-import io.reactivex.Single
+import io.reactivex.*
 import io.reactivex.functions.Function
+import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.fail
 
 class RxJavaUnitTest {
 
@@ -229,5 +228,37 @@ class RxJavaUnitTest {
                     }
                 }
             }
+    }
+
+    @Test
+    fun errorInError() {
+        println()
+        println("-------- doOnSubscribePlusFail")
+
+        Flowable
+            .create<Long>({ downStream ->
+
+                Flowable.interval(50, TimeUnit.MILLISECONDS).takeUntil(Flowable.timer(200, TimeUnit.MILLISECONDS))
+                    .subscribe(
+                        { downStream.onNext(it) },
+                        {},
+                        { downStream.onComplete() }
+                    )
+
+                Single
+                    .fromCallable {
+                        Thread.sleep(80)
+                        throw ExceptedException()
+                    }
+                    .subscribeOn(Schedulers.computation())
+                    .subscribe(
+                        { fail() },
+                        { println("Excepted error correctly catch") }
+                    )
+            }, BackpressureStrategy.BUFFER)
+            .blockingSubscribe(
+                { println("Everything is fine, value: $it") },
+                { fail() }
+            )
     }
 }
