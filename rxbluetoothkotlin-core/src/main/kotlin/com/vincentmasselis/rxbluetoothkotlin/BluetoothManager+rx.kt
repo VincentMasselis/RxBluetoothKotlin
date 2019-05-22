@@ -1,7 +1,6 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -10,8 +9,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Build
-import android.os.Build.VERSION.SDK_INT
-import android.os.Build.VERSION_CODES.O_MR1
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
@@ -72,7 +69,7 @@ fun BluetoothManager.rxScan(
                     logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
                     return@defer Completable.error(BluetoothIsTurnedOff())
                 }
-                SDK_INT >= Build.VERSION_CODES.M &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                         (ContextHolder.context.getSystemService(Context.LOCATION_SERVICE) as LocationManager).let { locationManager ->
                             locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
                         } -> {
@@ -133,8 +130,7 @@ fun BluetoothManager.rxScan(
                     scanner.startScan(callback)
                 }
 
-                @SuppressLint("NewApi")
-                if (SDK_INT == O_MR1) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     Single
                         .fromCallable {
                             //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
@@ -158,6 +154,7 @@ fun BluetoothManager.rxScan(
                                 ?.let { mScannerId ->
                                     return@fromCallable mScannerId
                                 }
+
                         }
                         .subscribeOn(Schedulers.computation())
                         .subscribe({ mScannerId ->
