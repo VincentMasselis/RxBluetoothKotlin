@@ -1,17 +1,17 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.content.IntentFilter
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.functions.Consumer
 import io.reactivex.functions.Function
 import java.util.*
 import java.util.concurrent.CancellationException
@@ -19,15 +19,58 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
+@SuppressLint("CheckResult")
 class RxBluetoothGattImpl(
     private val logger: Logger?,
     override val source: BluetoothGatt,
     override val callback: RxBluetoothGatt.Callback
 ) : RxBluetoothGatt {
 
-    // -------------------- Connection
 
-    private val bluetoothManager by lazy { ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
+    private var isClosed = false
+
+    private val bluetoothManager = ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+
+    private val bluetoothTurnedOffSingle = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        .toObservable(ContextHolder.context)
+        .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
+        .startWith(
+            if (bluetoothManager.adapter.isEnabled) BluetoothAdapter.STATE_ON
+            else BluetoothAdapter.STATE_OFF
+        )
+        .filter { it != BluetoothAdapter.STATE_ON }
+        .share()
+        .firstOrError()
+
+    /**
+     * [source] is always closed after a disconnection, it cannot be reopened, you have a to create another one by calling [BluetoothDevice.connectRxGatt]. You can easily
+     * find which [BluetoothDevice] was used in the current object by calling [source.device].
+     *
+     * On the previous Android version, turning off the Bluetooth calls onConnectionStateChange which automatically closes the BluetoothGatt connection. Since Oreo,
+     * onConnectionStateChange is no longer called so I have to manually close the connection the be sure that BluetoothGatt will not be used anymore and a new
+     * BluetoothGatt will be created.
+     *
+     * If BluetoothGatt is not closed, I can lead to multiple BluetoothGatt instance connected to the same device with the SAME clientIf id, I've seen it on Mi Mix 2s MIUI 10.0,
+     * Android 8.0.0.
+     */
+    init {
+        Single
+            .ambArray(
+                bluetoothTurnedOffSingle
+                    .map { Unit },
+                callback.onConnectionState
+                    .filter { (newState) -> newState == BluetoothProfile.STATE_DISCONNECTED }
+                    .firstOrError()
+                    .map { Unit }
+            )
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(Consumer {
+                source.close()
+                isClosed = true
+            })
+    }
+
+    // -------------------- Connection
 
     /**
      * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
@@ -43,48 +86,31 @@ class RxBluetoothGattImpl(
      */
     private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = Observable
         .create<Unit> { downStream ->
+            if (isClosed) {
+                downStream.tryOnError(exceptionConverter(source.device, -1))
+                return@create
+            }
             downStream.setDisposable(
                 callback.onConnectionState
                     .subscribe { (newState, status) ->
-                        if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
-                            // Check if the device is really connected, some specific phones don't call rxConnectionState whereas the device is no longer connected (for example, on the
-                            // Nexus 5X 8.1, turning off the Bluetooth doesn't fire onConnectionStateChange)
-                            val isDeviceReallyConnected = bluetoothManager
-                                .getConnectedDevices(BluetoothProfile.GATT)
-                                .any { it.address == source.device.address }
-                            if (isDeviceReallyConnected)
+                        when {
+                            newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
                                 downStream.onNext(Unit)
-                            else
-                                downStream.tryOnError(exceptionConverter(source.device, -1))
-                        } else if (newState == BluetoothProfile.STATE_DISCONNECTED)
-                            if (status != BluetoothGatt.GATT_SUCCESS)
-                                downStream.tryOnError(exceptionConverter(source.device, status))
-                            else
+
+                            newState == BluetoothProfile.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
                                 downStream.onComplete()
-                        else if (status != BluetoothGatt.GATT_SUCCESS)
-                            downStream.tryOnError(exceptionConverter(source.device, status))
+
+                            newState == BluetoothProfile.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS ->
+                                downStream.tryOnError(exceptionConverter(source.device, status))
+
+                            status != BluetoothGatt.GATT_SUCCESS ->
+                                downStream.tryOnError(exceptionConverter(source.device, status))
+                        }
                     })
         }
         .takeUntil( // Forward the [BluetoothIsTurnedOff] exception to livingConnection when it occurs
-            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-                .toObservable(ContextHolder.context)
-                .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
-                .startWith(
-                    if (bluetoothManager.adapter.isEnabled)
-                        BluetoothAdapter.STATE_ON
-                    else
-                        BluetoothAdapter.STATE_OFF
-                )
-                .filter { it != BluetoothAdapter.STATE_ON }
-                .firstOrError()
-                .flatMapCompletable {
-                    // On the previous Android version, turning off the Bluetooth calls onConnectionStateChange which automatically closes the BluetoothGatt connection. Since Oreo,
-                    // onConnectionStateChange is no longer called so I have to manually close the connection the be sure that BluetoothGatt will not be used anymore and a new
-                    // BluetoothGatt will be created. (If BluetoothGatt is not closed, I can lead to multiple BluetoothGatt instance connected to the same device with the SAME clientIf
-                    // id, I've seen it on Mi Mix 2s MIUI 10.0, Android 8.0.0)
-                    Handler(Looper.getMainLooper()).post { source.close() }
-                    Completable.error(BluetoothIsTurnedOff())
-                }
+            bluetoothTurnedOffSingle
+                .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
                 .toObservable<Unit>()
         )
 

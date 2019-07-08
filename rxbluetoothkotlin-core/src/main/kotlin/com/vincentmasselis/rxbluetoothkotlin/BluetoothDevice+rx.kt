@@ -42,7 +42,7 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
     callbackConstructor: (() -> T) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T },
     rxGattConstructor: ((BluetoothGatt, T) -> E) = { gatt, callbacks -> RxBluetoothGattImpl(logger, gatt, callbacks) as E }
 ): Single<E> = Single
-    .fromCallable<E> {
+    .fromCallable {
 
         if (ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")

@@ -3,7 +3,6 @@ package com.vincentmasselis.rxbluetoothkotlin
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothProfile
 import io.reactivex.processors.PublishProcessor
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
@@ -23,7 +22,6 @@ class RxBluetoothGattCallbackImpl : RxBluetoothGatt.Callback() {
     override val onReliableWriteCompleted = PublishSubject.create<Status>()
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-        if (newState == BluetoothProfile.STATE_DISCONNECTED) gatt.close()
         onConnectionState.onNext(ConnectionState(newState, status))
     }
 
@@ -56,7 +54,6 @@ class RxBluetoothGattCallbackImpl : RxBluetoothGatt.Callback() {
     }
 
     override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-
         onCharacteristicChanged.onNext(characteristic)
     }
 

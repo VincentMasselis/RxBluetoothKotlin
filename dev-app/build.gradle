@@ -27,13 +27,13 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     testImplementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
-    testImplementation 'io.reactivex.rxjava2:rxjava:2.2.8'
+    testImplementation 'io.reactivex.rxjava2:rxjava:2.2.10'
 
     androidTestImplementation 'androidx.test.ext:junit:1.1.0'
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'com.android.support.test:rules:1.0.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
-    androidTestImplementation 'io.reactivex.rxjava2:rxjava:2.2.8'
+    androidTestImplementation 'io.reactivex.rxjava2:rxjava:2.2.10'
     androidTestImplementation 'io.reactivex.rxjava2:rxkotlin:2.3.0'
     androidTestImplementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
 
@@ -42,7 +42,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'androidx.appcompat:appcompat:1.0.2'
     implementation 'androidx.core:core-ktx:1.0.2'
-    implementation 'io.reactivex.rxjava2:rxjava:2.2.8'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.10'
     implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
     implementation 'com.vincentmasselis.rxuikotlin:rxuikotlin-core:1.2.0'
 
