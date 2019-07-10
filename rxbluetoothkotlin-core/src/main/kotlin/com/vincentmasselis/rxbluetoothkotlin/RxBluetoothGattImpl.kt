@@ -2,6 +2,7 @@ package com.vincentmasselis.rxbluetoothkotlin
 
 import android.annotation.SuppressLint
 import android.bluetooth.*
+import android.bluetooth.BluetoothAdapter.*
 import android.content.Context
 import android.content.IntentFilter
 import android.os.Build
@@ -11,8 +12,10 @@ import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.functions.Consumer
 import io.reactivex.functions.Function
+import io.reactivex.subjects.SingleSubject
 import java.util.*
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
@@ -26,21 +29,25 @@ class RxBluetoothGattImpl(
     override val callback: RxBluetoothGatt.Callback
 ) : RxBluetoothGatt {
 
-
-    private var isClosed = false
-
     private val bluetoothManager = ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
 
-    private val bluetoothTurnedOffSingle = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+    /**
+     * Returns [Unit] when the current bluetooth status is OK
+     * Fires an [BluetoothIsTurnedOff] when the bluetooth status has changed to an invalid state
+     */
+    private val livingBluetoothStatus = IntentFilter(ACTION_STATE_CHANGED)
         .toObservable(ContextHolder.context)
-        .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
-        .startWith(
-            if (bluetoothManager.adapter.isEnabled) BluetoothAdapter.STATE_ON
-            else BluetoothAdapter.STATE_OFF
-        )
-        .filter { it != BluetoothAdapter.STATE_ON }
-        .share()
-        .firstOrError()
+        .map { (_, intent) -> intent.getIntExtra(EXTRA_STATE, ERROR) }
+        .startWith(Observable.fromCallable {
+            if (bluetoothManager.adapter.isEnabled) STATE_ON
+            else STATE_OFF
+        })
+        .map { if (it == STATE_ON) Unit else throw BluetoothIsTurnedOff() }
+        .distinct()
+        .replay(1)
+        .refCount()
+
+    private val closeSubject = SingleSubject.create<Int>()
 
     /**
      * [source] is always closed after a disconnection, it cannot be reopened, you have a to create another one by calling [BluetoothDevice.connectRxGatt]. You can easily
@@ -54,20 +61,17 @@ class RxBluetoothGattImpl(
      * Android 8.0.0.
      */
     init {
-        Single
-            .ambArray(
-                bluetoothTurnedOffSingle
-                    .map { Unit },
-                callback.onConnectionState
-                    .filter { (newState) -> newState == BluetoothProfile.STATE_DISCONNECTED }
-                    .firstOrError()
-                    .map { Unit }
-            )
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(Consumer {
-                source.close()
-                isClosed = true
-            })
+        callback.onConnectionState
+            .filter { (newState) -> newState == BluetoothProfile.STATE_DISCONNECTED }
+            .firstOrError()
+            .subscribe(Consumer { closeSubject.onSuccess(it.status) })
+
+        livingBluetoothStatus.subscribe({}, { closeSubject.onSuccess(-1) })
+
+        closeSubject.subscribe(Consumer {
+            source.disconnect()
+            source.close()
+        })
     }
 
     // -------------------- Connection
@@ -85,34 +89,38 @@ class RxBluetoothGattImpl(
      * onError with [BluetoothIsTurnedOff] or the result of [exceptionConverter] when a unexpected disconnection occurs
      */
     private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = Observable
-        .create<Unit> { downStream ->
-            if (isClosed) {
-                downStream.tryOnError(exceptionConverter(source.device, -1))
-                return@create
-            }
-            downStream.setDisposable(
-                callback.onConnectionState
-                    .subscribe { (newState, status) ->
-                        when {
-                            newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
-                                downStream.onNext(Unit)
+        .create { downStream: ObservableEmitter<Unit> ->
+            val disps = CompositeDisposable()
 
-                            newState == BluetoothProfile.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
-                                downStream.onComplete()
+            livingBluetoothStatus
+                .subscribe({}, { downStream.tryOnError(BluetoothIsTurnedOff()) })
+                .also { disps.add(it) }
 
-                            newState == BluetoothProfile.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS ->
-                                downStream.tryOnError(exceptionConverter(source.device, status))
+            // I only have to check if there is a current value, subscribing to the eventual future value is useless because, if a STATE_DISCONNECTED is returned by the system,
+            // callback.onConnectionState also will handle the disconnection
+            closeSubject.value?.let { closedStatus -> downStream.tryOnError(exceptionConverter(source.device, closedStatus)) }
 
-                            status != BluetoothGatt.GATT_SUCCESS ->
-                                downStream.tryOnError(exceptionConverter(source.device, status))
-                        }
-                    })
+            callback.onConnectionState
+                .subscribe { (newState, status) ->
+                    when {
+                        newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
+                            downStream.onNext(Unit)
+
+                        newState == BluetoothProfile.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS ->
+                            downStream.onComplete()
+
+                        newState == BluetoothProfile.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS ->
+                            downStream.tryOnError(exceptionConverter(source.device, status))
+
+                        status != BluetoothGatt.GATT_SUCCESS ->
+                            downStream.tryOnError(exceptionConverter(source.device, status))
+                    }
+                }
+                .also { disps.add(it) }
+
+            downStream.setDisposable(disps)
         }
-        .takeUntil( // Forward the [BluetoothIsTurnedOff] exception to livingConnection when it occurs
-            bluetoothTurnedOffSingle
-                .flatMapCompletable { Completable.error(BluetoothIsTurnedOff()) }
-                .toObservable<Unit>()
-        )
+
 
     /**
      * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the [Status]

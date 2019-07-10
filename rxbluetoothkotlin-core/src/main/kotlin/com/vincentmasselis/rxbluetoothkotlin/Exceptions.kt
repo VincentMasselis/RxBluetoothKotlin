@@ -1,6 +1,9 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
-import android.bluetooth.*
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
 import com.vincentmasselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeCharacteristicWrite
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.CharacteristicWriteDeviceDisconnected
 import java.util.*
@@ -105,9 +108,8 @@ class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UU
  * undocumented but [status] seems to refers to theses consts :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
  *
- * /!\ IMPORTANT : It can returns a -1 [status] which is not documented in the previous URL. If
- * this value is fired, that means the [BluetoothGattCallback] say the device is connected while
- * [android.bluetooth.BluetoothManager.getConnectedDevices] doesn't contain the device.
+ * /!\ IMPORTANT : It can returns a -1 [status] which is not documented in the previous URL. This status
+ * is used when the connection was killed by a [BluetoothIsTurnedOff] exception.
  */
 sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : Throwable() {
     override fun toString(): String = "DeviceDisconnected(device=$device, status=$status)"
