@@ -15,11 +15,10 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.functions.Consumer
 import io.reactivex.functions.Function
+import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.SingleSubject
 import java.util.*
 import java.util.concurrent.CancellationException
-import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 @SuppressLint("CheckResult")
@@ -139,53 +138,53 @@ class RxBluetoothGattImpl(
 
     // -------------------- I/O Tools
 
-    private val semaphore = Semaphore(1)
-    private val executor = Executors.newSingleThreadExecutor()
+    private val operationQueue = PublishSubject.create<Maybe<Any>>()
+
+    init {
+        operationQueue
+            .concatMapMaybe { it.onErrorReturnItem(Unit) /* To avoid disposing which make the queue unavailable */ }
+            .subscribe()
+    }
 
     /**
      * [enqueue] is a useful method which avoid multiple I/O operation on the [BluetoothGatt] at the same time and it does every one on the main thread.
      *
-     * [exception] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
+     * @param [exceptionWrapper] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
      * calling method. It helps the downstream to handle the exception and find where and why the exception was fired.
      *
-     * [sourceSingle] a single which contains a [BluetoothGatt] I/O operation to do.
+     * @param [this] a single which contains a [BluetoothGatt] I/O operation to do.
      */
-    private fun <R> enqueue(exception: (device: BluetoothDevice, status: Int) -> DeviceDisconnected, sourceSingle: () -> Single<R>) = Maybe.create<R> { downstream ->
-        executor.submit {
-            semaphore.acquire()
+    private fun <T> Single<T>.enqueue(exceptionWrapper: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = Maybe.create<T> { downstream ->
+        val livingConnection = Observable.defer { livingConnection(exceptionWrapper) }.replay(1).refCount()
 
-            if (downstream.isDisposed) {
-                semaphore.release()
-                return@submit
+        livingConnection
+            .flatMapSingle {
+                this // this is the single to enqueue
+                    .subscribeOn(AndroidSchedulers.mainThread())
+                    // Value is set to 1 minute because some devices take a long time to detect when the connection is lost. For example, we saw up to 16 seconds on a Nexus 4
+                    // between the last call to write and the moment when the system fallback the disconnection.
+                    .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
+                    // I force `sourceSingle` to terminate when livingConnection completes. Without this, the `onComplete` message is delayed until `sourceSingle` has finished
+                    // his work which could never appends because the device is disconnected.
+                    .takeUntil(livingConnection.ignoreElements())
+            }
+            .onErrorResumeNext(Function {
+                // Error fired when `sourceSingle` is stopped by an `onComplete` signal from `livingConnection`. See the `Single.takeUntil(Completable)` doc.
+                if (it is CancellationException) Observable.empty()
+                else Observable.error(it)
+            })
+            .firstElement()
+            // You don't have to subscribe to this chain, operationQueue will do it for you
+            // It's impossible to cancel a bluetooth I/O operation, so, even if the downstream is not listening for values, you must continue to listen until the end of the
+            // operation, if not, you could start a new operation before the current has finished which fires exceptions.
+            .doOnSuccess { downstream.onSuccess(it) }
+            .doOnError { downstream.tryOnError(it) }
+            .doOnComplete { downstream.onComplete() }
+            .also {
+                @Suppress("UNCHECKED_CAST")
+                operationQueue.onNext(it as Maybe<Any>)
             }
 
-            val livingConnection = Observable.defer { livingConnection(exception) }.replay(1).refCount()
-
-            livingConnection
-                .flatMapSingle {
-                    sourceSingle()
-                        .subscribeOn(AndroidSchedulers.mainThread())
-                        // Value is set to 1 minute because some devices take a long time to detect when the connection is lost. For example, we saw up to 16 seconds on a Nexus 4
-                        // between the last call to write and the moment when the system fallback the disconnection.
-                        .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
-                        // I force `sourceSingle` to terminate when livingConnection completes. Without this, the `onComplete` message is delayed until `sourceSingle` has finished
-                        // his work which could never appends because the device is disconnected.
-                        .takeUntil(livingConnection.ignoreElements())
-                }
-                .onErrorResumeNext(Function {
-                    // Error fired when `sourceSingle` is stopped by an `onComplete` signal from `livingConnection`. See the `Single.takeUntil(Completable)` doc.
-                    if (it is CancellationException) Observable.empty()
-                    else Observable.error(it)
-                })
-                .firstElement()
-                .doAfterTerminate { semaphore.release() }
-                // Do NOT replace by `.subscribe(downstream)`. By doing this, the downstream could cancel the current operation and `semaphore.release()` will never be called.
-                // Furthermore, it's impossible to cancel an bluetooth I/O operation, so, even if the downstream is not listening for values, you must continue to listen for the end
-                // of the operation before releasing the `semaphore`. If not, you could start a new operation before the current has finished which fires exceptions.
-                .subscribe({ downstream.onSuccess(it) },
-                    { downstream.tryOnError(it) },
-                    { downstream.onComplete() })
-        }
     }
 
     // -------------------- I/O Operations
@@ -205,18 +204,17 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.readRemoteRssi
      * @see BluetoothGattCallback.onReadRemoteRssi
      */
-    override fun readRemoteRssi(): Maybe<Int> =
-        enqueue(::RssiDeviceDisconnected) {
-            Single.create<RSSI> { downStream ->
-                downStream.setDisposable(callback.onRemoteRssiRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                logger?.v(TAG, "readRemoteRssi")
-                if (source.readRemoteRssi().not()) downStream.tryOnError(CannotInitialize.CannotInitializeRssiReading(source.device))
-            }
+    override fun readRemoteRssi(): Maybe<Int> = Single
+        .create<RSSI> { downStream ->
+            downStream.setDisposable(callback.onRemoteRssiRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "readRemoteRssi")
+            if (source.readRemoteRssi().not()) downStream.tryOnError(CannotInitialize.CannotInitializeRssiReading(source.device))
         }
-            .flatMap {
-                if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.RssiReadingFailed(it.status, source.device))
-                else Maybe.just(it.rssi)
-            }
+        .enqueue(::RssiDeviceDisconnected)
+        .flatMap {
+            if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.RssiReadingFailed(it.status, source.device))
+            else Maybe.just(it.rssi)
+        }
 
     /**
      * Reactive way to fetch a [List] of [BluetoothGattService] from the [source].
@@ -233,18 +231,17 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.discoverServices
      * @see BluetoothGattCallback.onServicesDiscovered
      */
-    override fun discoverServices(): Maybe<List<BluetoothGattService>> =
-        enqueue(::DiscoverServicesDeviceDisconnected) {
-            Single.create<Int> { downStream ->
-                downStream.setDisposable(callback.onServicesDiscovered.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                logger?.v(TAG, "discoverServices")
-                if (source.discoverServices().not()) downStream.tryOnError(CannotInitialize.CannotInitializeServicesDiscovering(source.device))
-            }
+    override fun discoverServices(): Maybe<List<BluetoothGattService>> = Single
+        .create<Int> { downStream ->
+            downStream.setDisposable(callback.onServicesDiscovered.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "discoverServices")
+            if (source.discoverServices().not()) downStream.tryOnError(CannotInitialize.CannotInitializeServicesDiscovering(source.device))
         }
-            .flatMap { status ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.ServiceDiscoveringFailed(status, source.device))
-                else Maybe.just(source.services)
-            }
+        .enqueue(::DiscoverServicesDeviceDisconnected)
+        .flatMap { status ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.ServiceDiscoveringFailed(status, source.device))
+            else Maybe.just(source.services)
+        }
 
     /**
      * Reactive way to read MTU from [source]
@@ -262,19 +259,17 @@ class RxBluetoothGattImpl(
      * @see BluetoothGattCallback.onMtuChanged
      */
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    override fun requestMtu(mtu: Int): Maybe<Int> =
-        enqueue(::MtuDeviceDisconnected) {
-            Single
-                .create<MTU> { downStream ->
-                    downStream.setDisposable(callback.onMtuChanged.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "requestMtu")
-                    if (source.requestMtu(mtu).not()) downStream.tryOnError(CannotInitialize.CannotInitializeMtuRequesting(source.device))
-                }
+    override fun requestMtu(mtu: Int): Maybe<Int> = Single
+        .create<MTU> { downStream ->
+            downStream.setDisposable(callback.onMtuChanged.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "requestMtu")
+            if (source.requestMtu(mtu).not()) downStream.tryOnError(CannotInitialize.CannotInitializeMtuRequesting(source.device))
         }
-            .flatMap {
-                if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.MtuRequestingFailed(it.status, source.device))
-                else Maybe.just(it.mtu)
-            }
+        .enqueue(::MtuDeviceDisconnected)
+        .flatMap {
+            if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.MtuRequestingFailed(it.status, source.device))
+            else Maybe.just(it.mtu)
+        }
 
     /**
      * Reactive way to read PHY from [source]
@@ -294,19 +289,17 @@ class RxBluetoothGattImpl(
      * @see BluetoothGattCallback.onPhyRead
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    override fun readPhy(): Maybe<ConnectionPHY> =
-        enqueue(::ReadPhyDeviceDisconnected) {
-            Single
-                .create<PHY> { downStream ->
-                    downStream.setDisposable(callback.onPhyRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "readPhy")
-                    source.readPhy()
-                }
+    override fun readPhy(): Maybe<ConnectionPHY> = Single
+        .create<PHY> { downStream ->
+            downStream.setDisposable(callback.onPhyRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "readPhy")
+            source.readPhy()
         }
-            .flatMap {
-                if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.PhyReadFailed(it.connectionPHY, it.status, source.device))
-                else Maybe.just(it.connectionPHY)
-            }
+        .enqueue(::ReadPhyDeviceDisconnected)
+        .flatMap {
+            if (it.status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.PhyReadFailed(it.connectionPHY, it.status, source.device))
+            else Maybe.just(it.connectionPHY)
+        }
 
     /**
      * Reactive way to set preferred PHY to [source]
@@ -326,20 +319,17 @@ class RxBluetoothGattImpl(
      * @see BluetoothGattCallback.onPhyUpdate
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    override fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY> =
-        enqueue({ device, status -> SetPreferredPhyDeviceDisconnected(connectionPhy, phyOptions, device, status) }
-            , {
-                Single
-                    .create<PHY> { downStream ->
-                        downStream.setDisposable(callback.onPhyUpdate.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                        logger?.v(TAG, "setPreferredPhy with txPhy ${connectionPhy.transmitter}, rxPhy ${connectionPhy.receiver} and phyOptions $phyOptions")
-                        source.setPreferredPhy(connectionPhy.transmitter, connectionPhy.receiver, phyOptions)
-                    }
-            })
-            .flatMap { (connectionPhy, status) ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.SetPreferredPhyFailed(connectionPhy, phyOptions, status, source.device))
-                else Maybe.just(connectionPhy)
-            }
+    override fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY> = Single
+        .create<PHY> { downStream ->
+            downStream.setDisposable(callback.onPhyUpdate.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "setPreferredPhy with txPhy ${connectionPhy.transmitter}, rxPhy ${connectionPhy.receiver} and phyOptions $phyOptions")
+            source.setPreferredPhy(connectionPhy.transmitter, connectionPhy.receiver, phyOptions)
+        }
+        .enqueue { device, status -> SetPreferredPhyDeviceDisconnected(connectionPhy, phyOptions, device, status) }
+        .flatMap { (connectionPhy, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.SetPreferredPhyFailed(connectionPhy, phyOptions, status, source.device))
+            else Maybe.just(connectionPhy)
+        }
 
     /**
      * Reactive way to read a value from [characteristic].
@@ -356,31 +346,29 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.readCharacteristic
      * @see BluetoothGattCallback.onCharacteristicRead
      */
-    override fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray> =
-        enqueue({ device, status -> CharacteristicReadDeviceDisconnected(device, status, characteristic.service, characteristic) }
-            , {
-                Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                    downStream.setDisposable(callback.onCharacteristicRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "readCharacteristic ${characteristic.uuid}")
-                    if (source.readCharacteristic(characteristic).not())
-                        downStream.tryOnError(
-                            CannotInitialize.CannotInitializeCharacteristicReading(
-                                source.device,
-                                characteristic.service,
-                                characteristic,
-                                characteristic.properties,
-                                source.internalService(),
-                                source.clientIf(),
-                                characteristic.service?.device(),
-                                source.isDeviceBusy()
-                            )
-                        )
-                }
-            })
-            .flatMap { (readCharacteristic, status) ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.CharacteristicReadingFailed(status, source.device, readCharacteristic.service, readCharacteristic))
-                else Maybe.just(readCharacteristic.value)
-            }
+    override fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray> = Single
+        .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
+            downStream.setDisposable(callback.onCharacteristicRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "readCharacteristic ${characteristic.uuid}")
+            if (source.readCharacteristic(characteristic).not())
+                downStream.tryOnError(
+                    CannotInitialize.CannotInitializeCharacteristicReading(
+                        source.device,
+                        characteristic.service,
+                        characteristic,
+                        characteristic.properties,
+                        source.internalService(),
+                        source.clientIf(),
+                        characteristic.service?.device(),
+                        source.isDeviceBusy()
+                    )
+                )
+        }
+        .enqueue { device, status -> CharacteristicReadDeviceDisconnected(device, status, characteristic.service, characteristic) }
+        .flatMap { (readCharacteristic, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(IOFailed.CharacteristicReadingFailed(status, source.device, readCharacteristic.service, readCharacteristic))
+            else Maybe.just(readCharacteristic.value)
+        }
 
     /**
      * Reactive way to write a [value] into a [characteristic].
@@ -397,41 +385,39 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.writeCharacteristic
      * @see BluetoothGattCallback.onCharacteristicWrite
      */
-    override fun write(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic> =
-        enqueue({ device, status -> CharacteristicWriteDeviceDisconnected(device, status, characteristic.service, characteristic, value) }
-            , {
-                Single.create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
-                    downStream.setDisposable(callback.onCharacteristicWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "writeCharacteristic ${characteristic.uuid} with value ${value.toHexString()}")
-                    characteristic.value = value
-                    if (source.writeCharacteristic(characteristic).not())
-                        downStream.tryOnError(
-                            CannotInitialize.CannotInitializeCharacteristicWrite(
-                                source.device,
-                                characteristic.service,
-                                characteristic,
-                                value,
-                                characteristic.properties,
-                                source.internalService(),
-                                source.clientIf(),
-                                characteristic.service?.device(),
-                                source.isDeviceBusy()
-                            )
-                        )
-                }
-            })
-            .flatMap { (wroteCharacteristic, status) ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
-                    IOFailed.CharacteristicWriteFailed(
-                        status,
+    override fun write(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic> = Single
+        .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
+            downStream.setDisposable(callback.onCharacteristicWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "writeCharacteristic ${characteristic.uuid} with value ${value.toHexString()}")
+            characteristic.value = value
+            if (source.writeCharacteristic(characteristic).not())
+                downStream.tryOnError(
+                    CannotInitialize.CannotInitializeCharacteristicWrite(
                         source.device,
-                        wroteCharacteristic.service,
-                        wroteCharacteristic,
-                        value
+                        characteristic.service,
+                        characteristic,
+                        value,
+                        characteristic.properties,
+                        source.internalService(),
+                        source.clientIf(),
+                        characteristic.service?.device(),
+                        source.isDeviceBusy()
                     )
                 )
-                else Maybe.just(wroteCharacteristic)
-            }
+        }
+        .enqueue { device, status -> CharacteristicWriteDeviceDisconnected(device, status, characteristic.service, characteristic, value) }
+        .flatMap { (wroteCharacteristic, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
+                IOFailed.CharacteristicWriteFailed(
+                    status,
+                    source.device,
+                    wroteCharacteristic.service,
+                    wroteCharacteristic,
+                    value
+                )
+            )
+            else Maybe.just(wroteCharacteristic)
+        }
 
     /**
      * Enables notification for the [characteristic]. Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from the [write] method.
@@ -476,35 +462,33 @@ class RxBluetoothGattImpl(
             checkIfAlreadyDisabled
         )
 
-    private fun rxChangeNotification(characteristic: BluetoothGattCharacteristic, byteArray: ByteArray, checkIfAlreadyChanged: Boolean): Maybe<BluetoothGattCharacteristic> =
-        enqueue({ device, status -> ChangeNotificationDeviceDisconnected(device, status, characteristic, byteArray, checkIfAlreadyChanged) },
-            {
-                Single.create<Unit> { downStream ->
-                    val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
-                    logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
-                    if (source.setCharacteristicNotification(characteristic, isEnable).not())
-                        downStream.tryOnError(
-                            CannotInitialize.CannotInitializeCharacteristicNotification(
-                                source.device,
-                                characteristic.service,
-                                characteristic,
-                                source.internalService(),
-                                source.clientIf(),
-                                characteristic.service?.device()
-                            )
-                        )
-                    else
-                        downStream.onSuccess(Unit)
-                }
-            })
-            .flatMap {
-                val notificationDescriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
-                if (notificationDescriptor == null)
-                    Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
-                else
-                    write(notificationDescriptor, byteArray, checkIfAlreadyChanged)
-                        .map { characteristic }
-            }
+    private fun rxChangeNotification(characteristic: BluetoothGattCharacteristic, byteArray: ByteArray, checkIfAlreadyChanged: Boolean): Maybe<BluetoothGattCharacteristic> = Single
+        .create<Unit> { downStream ->
+            val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
+            logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
+            if (source.setCharacteristicNotification(characteristic, isEnable).not())
+                downStream.tryOnError(
+                    CannotInitialize.CannotInitializeCharacteristicNotification(
+                        source.device,
+                        characteristic.service,
+                        characteristic,
+                        source.internalService(),
+                        source.clientIf(),
+                        characteristic.service?.device()
+                    )
+                )
+            else
+                downStream.onSuccess(Unit)
+        }
+        .enqueue { device, status -> ChangeNotificationDeviceDisconnected(device, status, characteristic, byteArray, checkIfAlreadyChanged) }
+        .flatMap {
+            val notificationDescriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
+            if (notificationDescriptor == null)
+                Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
+            else
+                write(notificationDescriptor, byteArray, checkIfAlreadyChanged)
+                    .map { characteristic }
+        }
 
     /**
      * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [enableNotification] before listening this method.
@@ -551,39 +535,37 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.readDescriptor
      * @see BluetoothGattCallback.onDescriptorRead
      */
-    override fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> =
-        enqueue({ device, status -> DescriptorReadDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor) }
-            , {
-                Single.create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                    downStream.setDisposable(callback.onDescriptorRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
-                    if (source.readDescriptor(descriptor).not())
-                        downStream.tryOnError(
-                            CannotInitialize.CannotInitializeDescriptorReading(
-                                source.device,
-                                descriptor.characteristic?.service,
-                                descriptor.characteristic,
-                                descriptor,
-                                source.internalService(),
-                                source.clientIf(),
-                                descriptor.characteristic?.service?.device(),
-                                source.isDeviceBusy()
-                            )
-                        )
-                }
-            })
-            .flatMap { (readDescriptor, status) ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
-                    IOFailed.DescriptorReadingFailed(
-                        status,
+    override fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> = Single
+        .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
+            downStream.setDisposable(callback.onDescriptorRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "readDescriptor ${descriptor.uuid}")
+            if (source.readDescriptor(descriptor).not())
+                downStream.tryOnError(
+                    CannotInitialize.CannotInitializeDescriptorReading(
                         source.device,
-                        readDescriptor.characteristic.service,
-                        readDescriptor.characteristic,
-                        readDescriptor
+                        descriptor.characteristic?.service,
+                        descriptor.characteristic,
+                        descriptor,
+                        source.internalService(),
+                        source.clientIf(),
+                        descriptor.characteristic?.service?.device(),
+                        source.isDeviceBusy()
                     )
                 )
-                else Maybe.just(readDescriptor.value)
-            }
+        }
+        .enqueue { device, status -> DescriptorReadDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor) }
+        .flatMap { (readDescriptor, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
+                IOFailed.DescriptorReadingFailed(
+                    status,
+                    source.device,
+                    readDescriptor.characteristic.service,
+                    readDescriptor.characteristic,
+                    readDescriptor
+                )
+            )
+            else Maybe.just(readDescriptor.value)
+        }
 
     /**
      * Reactive way to write a [value] into a [descriptor].
@@ -600,47 +582,45 @@ class RxBluetoothGattImpl(
      * @see BluetoothGatt.writeDescriptor
      * @see BluetoothGattCallback.onDescriptorWrite
      */
-    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean): Maybe<BluetoothGattDescriptor> =
-        enqueue({ device, status -> DescriptorWriteDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }
-            , {
-                Single.create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-                    if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
-                        downStream.onSuccess(descriptor to BluetoothGatt.GATT_SUCCESS)
-                        return@create
-                    }
+    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean): Maybe<BluetoothGattDescriptor> = Single
+        .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
+            if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
+                downStream.onSuccess(descriptor to BluetoothGatt.GATT_SUCCESS)
+                return@create
+            }
 
-                    downStream.setDisposable(callback.onDescriptorWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
-                    logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
-                    descriptor.value = value
-                    if (source.writeDescriptor(descriptor).not())
-                        downStream.tryOnError(
-                            CannotInitialize.CannotInitializeDescriptorWrite(
-                                source.device,
-                                descriptor.characteristic?.service,
-                                descriptor.characteristic,
-                                descriptor,
-                                value,
-                                source.internalService(),
-                                source.clientIf(),
-                                descriptor.characteristic?.service?.device(),
-                                source.isDeviceBusy()
-                            )
-                        )
-                }
-            })
-            .flatMap { (wroteDescriptor, status) ->
-                if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
-                    IOFailed.DescriptorWriteFailed(
-                        status,
+            downStream.setDisposable(callback.onDescriptorWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
+            logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
+            descriptor.value = value
+            if (source.writeDescriptor(descriptor).not())
+                downStream.tryOnError(
+                    CannotInitialize.CannotInitializeDescriptorWrite(
                         source.device,
-                        wroteDescriptor.characteristic.service,
-                        wroteDescriptor.characteristic,
-                        wroteDescriptor,
-                        value
+                        descriptor.characteristic?.service,
+                        descriptor.characteristic,
+                        descriptor,
+                        value,
+                        source.internalService(),
+                        source.clientIf(),
+                        descriptor.characteristic?.service?.device(),
+                        source.isDeviceBusy()
                     )
                 )
-                else Maybe.just(wroteDescriptor)
-            }
+        }
+        .enqueue { device, status -> DescriptorWriteDeviceDisconnected(device, status, descriptor.characteristic.service, descriptor.characteristic, descriptor, value) }
+        .flatMap { (wroteDescriptor, status) ->
+            if (status != BluetoothGatt.GATT_SUCCESS) Maybe.error(
+                IOFailed.DescriptorWriteFailed(
+                    status,
+                    source.device,
+                    wroteDescriptor.characteristic.service,
+                    wroteDescriptor.characteristic,
+                    wroteDescriptor,
+                    value
+                )
+            )
+            else Maybe.just(wroteDescriptor)
+        }
 
     companion object {
         private const val TAG = "RxBluetoothGattImpl"
