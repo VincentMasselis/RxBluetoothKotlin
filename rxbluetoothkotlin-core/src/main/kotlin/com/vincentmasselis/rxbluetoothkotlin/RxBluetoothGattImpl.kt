@@ -60,17 +60,21 @@ class RxBluetoothGattImpl(
      * Android 8.0.0.
      */
     init {
+        closeSubject // Automatically disposes when the subject emits
+            .subscribe(Consumer {
+                source.disconnect()
+                source.close()
+            })
+
         callback.onConnectionState
+            .takeUntil(closeSubject.toObservable()) // Disposes when the connection is closed by a bluetooth disconnection or any alternative reason
             .filter { (newState) -> newState == BluetoothProfile.STATE_DISCONNECTED }
-            .firstOrError()
-            .subscribe(Consumer { closeSubject.onSuccess(it.status) })
+            .firstElement()
+            .subscribe { closeSubject.onSuccess(it.status) }
 
-        livingBluetoothStatus.subscribe({}, { closeSubject.onSuccess(-1) })
-
-        closeSubject.subscribe(Consumer {
-            source.disconnect()
-            source.close()
-        })
+        livingBluetoothStatus
+            .takeUntil(closeSubject.toObservable()) // Disposes when the connection is closed by the connection state or any alternative reason
+            .subscribe({}, { closeSubject.onSuccess(-1) })
     }
 
     // -------------------- Connection
@@ -143,6 +147,7 @@ class RxBluetoothGattImpl(
     init {
         operationQueue
             .concatMapMaybe { it.onErrorReturnItem(Unit) /* To avoid disposing which make the queue unavailable */ }
+            .takeUntil(closeSubject.toObservable()) // Disposes when the connection is closed
             .subscribe()
     }
 
