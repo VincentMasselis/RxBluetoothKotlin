@@ -95,6 +95,7 @@ class RxBluetoothGattImpl(
         .create { downStream: ObservableEmitter<Unit> ->
             val disps = CompositeDisposable()
 
+            // Required because onConnectionState is not triggered if the bluetooth is turned off
             livingBluetoothStatus
                 .subscribe({}, { downStream.tryOnError(BluetoothIsTurnedOff()) })
                 .also { disps.add(it) }
@@ -146,8 +147,8 @@ class RxBluetoothGattImpl(
 
     init {
         operationQueue
+            .takeUntil(closeSubject.toObservable()) // Disposes when the connection is closed. Keep this takeUntil BEFORE the concatMapMaybe. If put after, every pending I/O into concatMapMaybe is disposed and the pending I/O messages will never trigger which causes dead chains.
             .concatMapMaybe { it.onErrorReturnItem(Unit) /* To avoid disposing which make the queue unavailable */ }
-            .takeUntil(closeSubject.toObservable()) // Disposes when the connection is closed
             .subscribe()
     }
 
