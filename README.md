@@ -17,7 +17,7 @@ implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.1
 // Add this to use the scanner
 implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
 // RxBluetoothKotlin doesn't provides the RxJava dependecy, you have to add it yourself:
-implementation 'io.reactivex.rxjava2:rxjava:2.2.10'
+implementation 'io.reactivex.rxjava2:rxjava:2.2.11'
 ```
 
 ### Scan
