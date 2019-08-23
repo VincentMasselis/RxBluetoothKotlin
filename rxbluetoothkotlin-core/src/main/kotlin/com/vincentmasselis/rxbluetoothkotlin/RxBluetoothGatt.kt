@@ -2,10 +2,7 @@ package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.*
 import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt.Callback
-import io.reactivex.Flowable
-import io.reactivex.FlowableTransformer
-import io.reactivex.Maybe
-import io.reactivex.Observable
+import io.reactivex.*
 
 /**
  * Wrapper of a [BluetoothGatt] instance which adds useful reactive methods. Not all the methods from [BluetoothGatt] are written here, only them which requires asynchronous
@@ -87,5 +84,7 @@ interface RxBluetoothGatt {
     fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray>
 
     fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor>
+
+    fun disconnect(): Completable
 
 }

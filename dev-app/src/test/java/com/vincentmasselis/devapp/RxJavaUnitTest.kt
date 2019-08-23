@@ -261,4 +261,50 @@ class RxJavaUnitTest {
                 { fail() }
             )
     }
+
+    @Test
+    fun takeUntilOnSubscription() {
+        println()
+        println("-------- takeUntilOnSubscription")
+
+        val obs = Observable.interval(0, 50, TimeUnit.MILLISECONDS)
+
+        val result = obs
+            .takeUntil(obs.filter { it == 0L })
+            .switchMap {
+                when(it){
+                    0L -> Observable.empty()
+                    1L -> Observable.just(it)
+                    2L -> Observable.empty()
+                    else -> throw IllegalStateException()
+                }
+            }
+            .blockingIterable()
+            .toList()
+
+        check(result.isEmpty())
+    }
+
+    @Test
+    fun takeUntilDelayed() {
+        println()
+        println("-------- takeUntilOnSubscription")
+
+        val obs = Observable.interval(0, 50, TimeUnit.MILLISECONDS)
+
+        val result = obs
+            .takeUntil(obs.filter { it == 2L })
+            .switchMap {
+                when(it){
+                    0L -> Observable.empty()
+                    1L -> Observable.just(it)
+                    2L -> Observable.empty()
+                    else -> throw IllegalStateException()
+                }
+            }
+            .blockingIterable()
+            .toList()
+
+        check(result.size == 1)
+    }
 }

@@ -7,15 +7,13 @@ import androidx.test.rule.ActivityTestRule
 import androidx.test.rule.GrantPermissionRule
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.postForUI
-import io.reactivex.rxkotlin.Maybes
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeUnit
 
-
 @RunWith(AndroidJUnit4::class)
-class EnqueueUnitTest {
+class DisconnectionTests {
 
     @Rule
     @JvmField
@@ -25,9 +23,9 @@ class EnqueueUnitTest {
     @JvmField
     val mainActivityRule = ActivityTestRule(TestActivity::class.java, true, false)
 
-    /** Check the queue is correctly working, if not, [CannotInitialize] exceptions are fired */
+    /** Disconnects right after a connection is done */
     @Test
-    fun enqueueingTest() {
+    fun disconnectionImmediatelyTest() {
         val activity = mainActivityRule.launchActivity(null)
         val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
@@ -36,34 +34,25 @@ class EnqueueUnitTest {
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
-            .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { activity.setMessage("Discovering services") }
-            .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .doOnSuccess { activity.setMessage("Running tests") }
             .flatMap { gatt ->
-                Maybes
-                    .zip(
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSuccess { Logger.v(TAG, "battery1 : ${it[0].toInt()}") },
-                        gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSuccess { Logger.v(TAG, "Enabled notification") },
-                        gatt.readRemoteRssi()
-                            .doOnSuccess { Logger.v(TAG, "rssi $it") }
-                    )
-                    .map { gatt }
+                gatt.disconnect()
+                gatt.whenConnectionIsReady().map { gatt }
             }
-            .doOnComplete { throw IllegalStateException("Should not complete here") }
+            .doOnSuccess { activity.setMessage("Discovering services") }
+            .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
+            .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .blockingGet()
-        gatt.disconnect()
-        mainActivityRule.finishActivity()
+        check(gatt == null)
 
         Thread.sleep(5000)
+
+        mainActivityRule.finishActivity()
     }
 
-    /** Disconnects while there is an I/O in the queue */
+    /** Disconnects 10 millis after a connection */
     @Test
-    fun queueDisconnectionTest() {
+    fun disconnection10msTest() {
         val activity = mainActivityRule.launchActivity(null)
         val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
@@ -72,37 +61,82 @@ class EnqueueUnitTest {
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
-            .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .delay(7, TimeUnit.SECONDS) // Small delay to force the sensor switch into 500ms connection interval
-            .doOnSuccess { activity.setMessage("Discovering services") }
-            .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .doOnSuccess { activity.setMessage("Running tests") }
             .flatMap { gatt ->
-                Maybes
-                    .zip(
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSubscribe { activity.postForUI(50L to TimeUnit.MILLISECONDS) { gatt.disconnect() } } // Manual disconnection while reading
-                            .doOnSubscribe { Logger.v(TAG, "battery1 subscription") }
-                            .doOnComplete { Logger.v(TAG, "battery1 completed") },
-                        gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSubscribe { Logger.v(TAG, "Enabled notification subscription") }
-                            .doOnComplete { Logger.v(TAG, "Enabled notification completed") },
-                        gatt.readRemoteRssi()
-                            .doOnSubscribe { Logger.v(TAG, "RSSI subscription") }
-                            .doOnComplete { Logger.v(TAG, "RSSI completed") }
-                    )
+                activity.postForUI(10L to TimeUnit.MILLISECONDS) { gatt.disconnect() }
+                gatt.whenConnectionIsReady().map { gatt }
             }
-            .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
+            .doOnSuccess { activity.setMessage("Discovering services") }
+            .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
+            .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .blockingGet()
         check(gatt == null)
-        mainActivityRule.finishActivity()
 
         Thread.sleep(5000)
+
+        mainActivityRule.finishActivity()
     }
 
+    /** Disconnects 100 millis after a connection */
     @Test
-    fun queueCallRightAfterDisconnectionTest() {
+    fun disconnection100msTest() {
+        val activity = mainActivityRule.launchActivity(null)
+        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+            .rxScan()
+            .doOnSubscribe { activity.setMessage("Please wakeup your device") }
+            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .firstElement()
+            .doOnSuccess { activity.setMessage("Connecting") }
+            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMap { gatt ->
+                activity.postForUI(100L to TimeUnit.MILLISECONDS) { gatt.disconnect() }
+                gatt.whenConnectionIsReady().map { gatt }
+            }
+            .doOnSuccess { activity.setMessage("Discovering services") }
+            .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
+            .flatMap { it.listenDisconnection().toMaybe<RxBluetoothGatt>() }
+            .timeout(20, TimeUnit.SECONDS)
+            .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .blockingGet()
+        check(gatt == null)
+
+        Thread.sleep(5000)
+
+        mainActivityRule.finishActivity()
+    }
+
+    /** Disconnects 5 second after a connection */
+    @Test
+    fun disconnection5sTest() {
+        val activity = mainActivityRule.launchActivity(null)
+        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+            .rxScan()
+            .doOnSubscribe { activity.setMessage("Please wakeup your device") }
+            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .firstElement()
+            .doOnSuccess { activity.setMessage("Connecting") }
+            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMap { gatt ->
+                activity.postForUI(5L to TimeUnit.SECONDS) { gatt.disconnect() }
+                gatt.whenConnectionIsReady().map { gatt }
+            }
+            .doOnSuccess { activity.setMessage("Discovering services") }
+            .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
+            .flatMapCompletable { it.listenDisconnection().doOnSubscribe { Logger.v(TAG, "Listening for disconnection") } }
+            .timeout(20, TimeUnit.SECONDS)
+            .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .blockingGet()
+
+        check(gatt == null)
+
+        Thread.sleep(5000)
+
+        mainActivityRule.finishActivity()
+    }
+
+    /** Disconnects when reading the services */
+    @Test
+    fun disconnectionDiscoverServicesTest() {
         val activity = mainActivityRule.launchActivity(null)
         val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
@@ -112,45 +146,19 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { it.disconnect() }
             .doOnSuccess { activity.setMessage("Discovering services") }
-            .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
+            .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services"); gatt.disconnect() }.map { gatt } }
+            .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
-            .timeout(20L, TimeUnit.SECONDS)
             .blockingGet()
         check(gatt == null)
-        mainActivityRule.finishActivity()
 
         Thread.sleep(5000)
-    }
 
-    @Test
-    fun queueCallDelayAfterDisconnectionTest() {
-        val activity = mainActivityRule.launchActivity(null)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
-            .rxScan()
-            .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
-            .firstElement()
-            .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
-            .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { it.disconnect() }
-            .doOnSuccess { activity.setMessage("Discovering services") }
-            .delay(600, TimeUnit.MILLISECONDS)
-            .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
-            .doOnError { Logger.e(TAG, "Failed, reason :$it") }
-            .timeout(20L, TimeUnit.SECONDS)
-            .blockingGet()
-        check(gatt == null)
         mainActivityRule.finishActivity()
-
-        Thread.sleep(5000)
     }
 
     companion object {
-        const val TAG = "EnqueueUnitTest"
+        const val TAG = "DisconnectionTests"
     }
 }

@@ -76,7 +76,7 @@ class ListenChangeUnitTest {
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { gatt ->
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
-                    gatt.disconnect().subscribe()
+                    gatt.disconnect()
                 }, 1000)
             }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
