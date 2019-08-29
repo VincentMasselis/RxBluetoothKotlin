@@ -7,6 +7,7 @@ import androidx.test.rule.ActivityTestRule
 import androidx.test.rule.GrantPermissionRule
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.postForUI
+import io.reactivex.Maybe
 import io.reactivex.rxkotlin.Maybes
 import org.junit.Rule
 import org.junit.Test
@@ -55,7 +56,7 @@ class EnqueueUnitTest {
             .doOnComplete { throw IllegalStateException("Should not complete here") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .blockingGet()
-        gatt.disconnect()
+        gatt.disconnect().subscribe()
         mainActivityRule.finishActivity()
 
         Thread.sleep(5000)
@@ -81,7 +82,7 @@ class EnqueueUnitTest {
                 Maybes
                     .zip(
                         gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSubscribe { activity.postForUI(50L to TimeUnit.MILLISECONDS) { gatt.disconnect() } } // Manual disconnection while reading
+                            .doOnSubscribe { activity.postForUI(50L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } } // Manual disconnection while reading
                             .doOnSubscribe { Logger.v(TAG, "battery1 subscription") }
                             .doOnComplete { Logger.v(TAG, "battery1 completed") },
                         gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
@@ -112,7 +113,7 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { it.disconnect() }
+            .doOnSuccess { it.disconnect().subscribe() }
             .doOnSuccess { activity.setMessage("Discovering services") }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
@@ -136,7 +137,7 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { it.disconnect() }
+            .doOnSuccess { it.disconnect().subscribe() }
             .doOnSuccess { activity.setMessage("Discovering services") }
             .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
@@ -145,6 +146,43 @@ class EnqueueUnitTest {
             .timeout(20L, TimeUnit.SECONDS)
             .blockingGet()
         check(gatt == null)
+        mainActivityRule.finishActivity()
+
+        Thread.sleep(5000)
+    }
+
+    @Test
+    fun checkQueueWaitingElementsDisconnectionTest() {
+        val activity = mainActivityRule.launchActivity(null)
+        val result = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+            .rxScan()
+            .doOnSubscribe { activity.setMessage("Please wakeup your device") }
+            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .firstElement()
+            .doOnSuccess { activity.setMessage("Connecting") }
+            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
+            .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
+            .flatMap { gatt -> gatt.discoverServices().map { gatt } }
+            .doOnSuccess { activity.setMessage("Services discovered") }
+            .flatMap { gatt ->
+                Maybes
+                    .zip(
+                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { 1 }.switchIfEmpty(Maybe.just(0)),
+                        gatt.readRemoteRssi().map { 1 }.switchIfEmpty(Maybe.just(0)),
+                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { 1 }.switchIfEmpty(Maybe.just(0))
+                    )
+                    .doOnSubscribe { Logger.e(TAG, "I/O Subscription") }
+                    .doOnDispose { Logger.e(TAG, "I/O Dispose") }
+                    .doOnEvent { t1, t2 -> Logger.e(TAG, "I/O t1 $t1, t2 $t2") }
+                    .doOnSubscribe { activity.postForUI(20L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } }
+            }
+            .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .timeout(20L, TimeUnit.SECONDS)
+
+        check(result.blockingGet() == Triple(0, 0, 0))
+
         mainActivityRule.finishActivity()
 
         Thread.sleep(5000)

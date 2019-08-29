@@ -18,7 +18,6 @@ import io.reactivex.functions.Function
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.UnicastSubject
 import java.util.*
-import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -128,28 +127,29 @@ class RxBluetoothGattImpl(
 
     // -------------------- Connection
 
+    private object ExpectedDisconnection : Throwable()
+
     /**
      * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
      *
-     * It emit `onNext` only once, `onError` and `onComplete` are called only when the device disconnects.
+     * It emit `onNext` only once, `onError` are called only when the device disconnects.
      *
      * @return
      * onNext with [Unit] when the connection is ready
      *
      * onComplete when the connection is closed by the user
      *
-     * onError with [BluetoothIsTurnedOff] or the result of [exceptionConverter] when a unexpected disconnection occurs
+     * onError with [BluetoothIsTurnedOff] or the result of [exceptionConverter] when a unexpected disconnection occurs, if the connection where expected, [ExpectedDisconnection] is fired.
      */
     private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = stateSubject
-        .takeUntil(stateSubject.filter { it is ConnectionState.Lost && it.reason == null })
         .switchMap { state ->
             when (state) {
                 ConnectionState.Initializing -> Observable.empty() // Nothing we can do, let's wait
                 ConnectionState.Active -> Observable.just(Unit) // Excepted case, let's emit
-                is ConnectionState.Lost -> {
-                    if (state.reason != null) Observable.error(exceptionConverter(source.device, state.reason)) // Listening on a lost connection :(
-                    else Observable.empty() // Nothing we can do, the upper takeUntil should complete livingConnection soon
-                }
+                is ConnectionState.Lost -> Observable.error( // Listening on a lost connection :(
+                    state.reason?.let { exceptionConverter(source.device, it) }
+                        ?: ExpectedDisconnection
+                )
             }
         }
 
@@ -167,61 +167,55 @@ class RxBluetoothGattImpl(
      * @see BluetoothGattCallback.onConnectionStateChange
      */
     override fun livingConnection(): Observable<Unit> = livingConnection(DeviceDisconnected::SimpleDeviceDisconnected)
+        .onErrorResumeNext(Function {
+            if (it is ExpectedDisconnection) Observable.empty()
+            else Observable.error(it)
+        })
 
     // -------------------- I/O Tools
 
-    private val operationQueue = UnicastSubject.create<Maybe<Any>>()
+    private val operationQueue = UnicastSubject.create<Single<Any>>()
     private val operationQueueDisp = operationQueue
-        //.takeUntil(stateSubject.filter { it is ConnectionState.Lost }) // Disposes when the connection is closed. Keep this takeUntil BEFORE the concatMapMaybe. If put after, every pending I/O into concatMapMaybe is disposed and the pending I/O messages will never trigger which causes dead chains.
-        .concatMapMaybe({ it.onErrorReturnItem(Unit) /* To avoid disposing which make the queue unavailable */ }, 1)
+        .concatMapSingle({ it.onErrorReturnItem(Unit) /* To avoid disposing which make the queue unavailable */ }, 1)
         .subscribe()
 
     /**
      * [enqueue] is a useful method which avoid multiple I/O operation on the [BluetoothGatt] at the same time and it does every one on the main thread.
      *
-     * @param [exceptionWrapper] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
+     * @param [exceptionConverter] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
      * calling method. It helps the downstream to handle the exception and find where and why the exception was fired.
      *
      * @param [this] a single which contains a [BluetoothGatt] I/O operation to do.
      */
-    private fun <T> Single<T>.enqueue(exceptionWrapper: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this@RxBluetoothGattImpl
-        .livingConnection(exceptionWrapper) // Before sending the chain to the queue, I check that the queue is still available by using `livingConnection`
-        .firstElement()
-        .flatMap {
-            Maybe.create<T> { downstream ->
-                // Keep `livingConnection` attached to the chain when sending the chain to the queue because you don't known when the chain will be called by the queue, so, if the
-                // chain is called after a disconnection, the chain must fail.
-                val livingConnection = Observable.defer { livingConnection(exceptionWrapper) }.replay(1).refCount()
-
-                livingConnection
-                    .flatMapSingle {
-                        this // this is the single to enqueue
-                            .subscribeOn(AndroidSchedulers.mainThread())
-                            // Value is set to 1 minute because some devices take a long time to detect when the connection is lost. For example, we saw up to 16 seconds on a Nexus 4
-                            // between the last call to write and the moment when the system fallback the disconnection.
-                            .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
-                            // I force `sourceSingle` to terminate when livingConnection completes. Without this, the `onComplete` message is delayed until `sourceSingle` has finished
-                            // his work which could never appends because the device is disconnected.
-                            .takeUntil(livingConnection.ignoreElements())
-                    }
-                    .onErrorResumeNext(Function {
-                        // Error fired when `sourceSingle` is stopped by an `onComplete` signal from `livingConnection`. See the `Single.takeUntil(Completable)` doc.
-                        if (it is CancellationException) Observable.empty()
-                        else Observable.error(it)
-                    })
-                    .firstElement()
+    @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
+    private fun <T> Single<T>.enqueue(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Maybe<T> = this@RxBluetoothGattImpl
+        .livingConnection(exceptionConverter) // Surrounding the single to enqueue with livingConnection() to handle disconnection even if the single is not yet enqueued at this time
+        .flatMapSingle {
+            Single.create<T> { downstream ->
+                val singleToEnqueue = this // this is the single to enqueue
+                    .subscribeOn(AndroidSchedulers.mainThread())
+                    // Value is set to 1 minute because some devices take a long time to detect when the connection is lost. For example, we saw up to 16 seconds on a Nexus 4
+                    // between the last call to write and the moment when the system fallback the disconnection.
+                    .timeout(1, TimeUnit.MINUTES, Single.error(BluetoothTimeout()))
                     // You don't have to subscribe to this chain, operationQueue will do it for you
                     // It's impossible to cancel a bluetooth I/O operation, so, even if the downstream is not listening for values, you must continue to listen until the end of the
-                    // operation, if not, you a new operation could be started before the current has finished, this case causes exceptions.
+                    // operation, if not, a new operation could be started before the current has finished, this case causes exceptions.
                     .doOnSuccess { downstream.onSuccess(it) }
                     .doOnError { downstream.tryOnError(it) }
-                    .doOnComplete { downstream.onComplete() }
-                    .also {
-                        @Suppress("UNCHECKED_CAST")
-                        operationQueue.onNext(it as Maybe<Any>)
-                    }
+
+                // This case should be impossible because it require the livingConnection to `onNext()` while operationQueueDisp is disposed.
+                if (operationQueue.hasObservers().not())
+                    throw IllegalStateException("Cannot enqueue the single, there is no subscriber for the queue")
+
+                operationQueue.onNext(singleToEnqueue as Single<Any>)
             }
         }
+        .onErrorResumeNext(Function {
+            if (it is ExpectedDisconnection) Observable.empty()
+            else Observable.error(it)
+        })
+        .firstElement()
+
 
     // -------------------- I/O Operations
 
@@ -545,16 +539,16 @@ class RxBluetoothGattImpl(
     override fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic>
-    ): Flowable<ByteArray> = callback
-        .onCharacteristicChanged
+    ): Flowable<ByteArray> = livingConnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
+        .toFlowable(BackpressureStrategy.ERROR)
+        .flatMap { callback.onCharacteristicChanged }
         .compose(composer)
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
-        .takeUntil(
-            livingConnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
-                .ignoreElements()
-                .andThen(Flowable.just(Unit))
-        )
+        .onErrorResumeNext(Function {
+            if (it is ExpectedDisconnection) Flowable.empty()
+            else Flowable.error(it)
+        })
 
     /**
      * Reactive way to read a value from a [descriptor].

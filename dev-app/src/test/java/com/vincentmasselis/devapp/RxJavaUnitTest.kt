@@ -3,7 +3,9 @@ package com.vincentmasselis.devapp
 import io.reactivex.*
 import io.reactivex.functions.Function
 import io.reactivex.schedulers.Schedulers
+import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
+import io.reactivex.subjects.UnicastSubject
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
@@ -272,7 +274,7 @@ class RxJavaUnitTest {
         val result = obs
             .takeUntil(obs.filter { it == 0L })
             .switchMap {
-                when(it){
+                when (it) {
                     0L -> Observable.empty()
                     1L -> Observable.just(it)
                     2L -> Observable.empty()
@@ -295,7 +297,7 @@ class RxJavaUnitTest {
         val result = obs
             .takeUntil(obs.filter { it == 2L })
             .switchMap {
-                when(it){
+                when (it) {
                     0L -> Observable.empty()
                     1L -> Observable.just(it)
                     2L -> Observable.empty()
@@ -306,5 +308,180 @@ class RxJavaUnitTest {
             .toList()
 
         check(result.size == 1)
+    }
+
+    @Test
+    fun concatMapQueueWaitingTest() {
+        println()
+        println("-------- concatMapQueueWaitingTest")
+
+        val subject = UnicastSubject.create<Maybe<Long>>()
+
+        val disp = subject
+            .concatMapMaybe { it }
+            .subscribe { println("Queue: A maybe is consumed") }
+
+        subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 1 sub") }.doOnEvent { t1, t2 -> println("Timer 1 event $t1 $t2") })
+        subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 2 sub") }.doOnEvent { t1, t2 -> println("Timer 2 event $t1 $t2") })
+
+        Thread.sleep(50)
+        disp.dispose()
+
+        Thread.sleep(300)
+
+    }
+
+    @Test
+    fun concatMapQueueWaitingErrorTest() {
+        println()
+        println("-------- concatMapQueueWaitingTest")
+
+        val subject = UnicastSubject.create<Maybe<Long>>()
+
+        val disp = subject
+            .concatMapMaybe { it }
+            .subscribe(
+                { println("Queue: A maybe is consumed") },
+                { println("Queue: Error received") }
+            )
+
+        subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 1 sub") }.doOnEvent { t1, t2 -> println("Timer 1 event $t1 $t2") })
+        subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 2 sub") }.doOnEvent { t1, t2 -> println("Timer 2 event $t1 $t2") })
+
+        Thread.sleep(50)
+        subject.onError(IllegalStateException())
+
+        Thread.sleep(300)
+
+    }
+
+    @Test
+    fun queueLikeTest() {
+        println()
+        println("-------- queueLikeTest")
+
+        val subject = UnicastSubject.create<Single<Long>>()
+
+        val queueDisp = subject
+            .concatMapSingle { it }
+            .subscribe(
+                { println("Queue: A maybe is consumed") },
+                { println("Queue: Error received") }
+            )
+
+        val state = BehaviorSubject.create<Long>()
+
+        Observable.timer(10, TimeUnit.MILLISECONDS).subscribe { state.onNext(0L) }
+        Observable.timer(100, TimeUnit.MILLISECONDS).subscribe { queueDisp.dispose(); state.onError(IllegalStateException()) }
+
+        val operation = Single.timer(20, TimeUnit.MILLISECONDS)
+
+        val result = state
+            .flatMapSingle {
+                Single.create<Long> { downStream ->
+                    val singleToEnqueue = operation
+                        .doOnSuccess { downStream.onSuccess(it) }
+                        .doOnError { downStream.tryOnError(it) }
+
+                    subject.onNext(singleToEnqueue)
+                }
+            }
+            .firstElement()
+
+        check(result.blockingGet() == 0L)
+    }
+
+    @Test
+    fun queueLikeTestDisconnectionError() {
+        println()
+        println("-------- queueLikeTestDisconnectionError")
+
+        val subject = UnicastSubject.create<Single<Long>>()
+
+        val queueDisp = subject
+            .concatMapSingle { it }
+            .subscribe(
+                { println("Queue: A maybe is consumed") },
+                { println("Queue: Error received") }
+            )
+
+        val state = BehaviorSubject.create<Long>()
+
+        Observable.timer(10, TimeUnit.MILLISECONDS).subscribe { state.onNext(0L) }
+        Observable.timer(100, TimeUnit.MILLISECONDS).subscribe { queueDisp.dispose(); state.onError(IllegalStateException()) }
+
+        val operation = Single.timer(150, TimeUnit.MILLISECONDS)
+
+        val result = state
+            .flatMapSingle {
+                Single.create<Long> { downStream ->
+                    val singleToEnqueue = operation
+                        .doOnSuccess { downStream.onSuccess(it) }
+                        .doOnError { downStream.tryOnError(it) }
+
+                    subject.onNext(singleToEnqueue)
+                }
+            }
+            .firstElement()
+
+        try {
+            result.blockingGet()
+        } catch (_: IllegalStateException) {
+
+        }
+    }
+
+    @Test
+    fun queueLikeTestDoubleDisconnectionError() {
+        println()
+        println("-------- queueLikeTestDisconnectionError")
+
+
+        val queue = UnicastSubject.create<Single<Long>>()
+
+        val queueDisp = queue
+            .concatMapSingle { it }
+            .subscribe(
+                { println("Queue: A maybe is consumed") },
+                { println("Queue: Error received") }
+            )
+
+        val state = BehaviorSubject.create<Long>()
+
+        Observable.timer(10, TimeUnit.MILLISECONDS).subscribe { state.onNext(0L) }
+        Observable.timer(100, TimeUnit.MILLISECONDS).subscribe { queueDisp.dispose(); state.onError(IllegalStateException()) }
+
+        val operation = Single.timer(55, TimeUnit.MILLISECONDS)
+
+        val result1 = state
+            .flatMapSingle {
+                Single.create<Long> { downStream ->
+                    val singleToEnqueue = operation
+                        .doOnSuccess { downStream.onSuccess(it) }
+                        .doOnError { downStream.tryOnError(it) }
+
+                    queue.onNext(singleToEnqueue)
+                }
+            }
+            .firstElement()
+
+        val result2 = state
+            .flatMapSingle {
+                Single.create<Long> { downStream ->
+                    val singleToEnqueue = operation
+                        .doOnSuccess { downStream.onSuccess(it) }
+                        .doOnError { downStream.tryOnError(it) }
+
+                    queue.onNext(singleToEnqueue)
+                }
+            }
+            .firstElement()
+
+        check(result1.blockingGet() == 0L)
+        try {
+            result2.blockingGet()
+        } catch (_: IllegalStateException) {
+
+        }
     }
 }

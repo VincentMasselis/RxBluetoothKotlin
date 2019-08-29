@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.SimpleDeviceDisconnected
 import io.reactivex.Completable
 import io.reactivex.Maybe
+import io.reactivex.annotations.CheckReturnValue
 import java.util.*
 
 /**
@@ -18,6 +19,7 @@ import java.util.*
  *
  * @see RxBluetoothGatt.livingConnection
  */
+@CheckReturnValue
 fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().firstElement()
 
 /**
@@ -35,7 +37,7 @@ fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().fi
     "disconnect method extension is not allowed anymore, consider using the method from the RxBluetoothGatt interface directly",
     ReplaceWith("RxBluetoothGatt.disconnect", "com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt")
 )
-fun RxBluetoothGatt.disconnect(): Completable = Completable.fromAction { disconnect() }
+fun RxBluetoothGatt.disconnect(): Completable = disconnect()
 
 /**
  * Listen [BluetoothGatt] disconnections.
@@ -48,6 +50,7 @@ fun RxBluetoothGatt.disconnect(): Completable = Completable.fromAction { disconn
  *
  * @see RxBluetoothGatt.livingConnection
  */
+@CheckReturnValue
 fun RxBluetoothGatt.listenDisconnection(): Completable = livingConnection().ignoreElements()
 
 /**
