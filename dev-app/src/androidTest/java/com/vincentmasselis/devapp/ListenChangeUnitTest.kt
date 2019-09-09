@@ -51,7 +51,7 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == "E9:98:86:03:D5:9F" }
+            .filter { it.device.address == DEVICE_MAC }
             .firstElement()
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
@@ -70,7 +70,7 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == "E9:98:86:03:D5:9F" }
+            .filter { it.device.address == DEVICE_MAC }
             .firstElement()
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
@@ -98,7 +98,7 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == "E9:98:86:03:D5:9F" }
+            .filter { it.device.address == DEVICE_MAC }
             .firstElement()
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }

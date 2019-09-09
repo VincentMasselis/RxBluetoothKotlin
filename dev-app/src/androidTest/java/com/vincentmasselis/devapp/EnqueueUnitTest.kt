@@ -30,10 +30,13 @@ class EnqueueUnitTest {
     @Test
     fun enqueueingTest() {
         val activity = mainActivityRule.launchActivity(null)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+
+        bluetoothPreconditions(activity)
+
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
@@ -55,21 +58,27 @@ class EnqueueUnitTest {
             }
             .doOnComplete { throw IllegalStateException("Should not complete here") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
-            .blockingGet()
-        gatt.disconnect().subscribe()
-        mainActivityRule.finishActivity()
+            .test()
+            .await()
+            .assertValueCount(1)
+            .values()
+            .first()
+            .disconnect().subscribe()
 
-        Thread.sleep(5000)
+        mainActivityRule.finishActivity()
     }
 
     /** Disconnects while there is an I/O in the queue */
     @Test
     fun queueDisconnectionTest() {
         val activity = mainActivityRule.launchActivity(null)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+
+        bluetoothPreconditions(activity)
+
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
@@ -95,20 +104,23 @@ class EnqueueUnitTest {
             }
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
-            .blockingGet()
-        check(gatt == null)
-        mainActivityRule.finishActivity()
+            .test()
+            .await()
+            .assertComplete()
 
-        Thread.sleep(5000)
+        mainActivityRule.finishActivity()
     }
 
     @Test
     fun queueCallRightAfterDisconnectionTest() {
         val activity = mainActivityRule.launchActivity(null)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+
+        bluetoothPreconditions(activity)
+
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
@@ -119,20 +131,23 @@ class EnqueueUnitTest {
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .timeout(20L, TimeUnit.SECONDS)
-            .blockingGet()
-        check(gatt == null)
-        mainActivityRule.finishActivity()
+            .test()
+            .await()
+            .assertComplete()
 
-        Thread.sleep(5000)
+        mainActivityRule.finishActivity()
     }
 
     @Test
     fun queueCallDelayAfterDisconnectionTest() {
         val activity = mainActivityRule.launchActivity(null)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+
+        bluetoothPreconditions(activity)
+
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
@@ -144,20 +159,23 @@ class EnqueueUnitTest {
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .timeout(20L, TimeUnit.SECONDS)
-            .blockingGet()
-        check(gatt == null)
-        mainActivityRule.finishActivity()
+            .test()
+            .await()
+            .assertComplete()
 
-        Thread.sleep(5000)
+        mainActivityRule.finishActivity()
     }
 
     @Test
     fun checkQueueWaitingElementsDisconnectionTest() {
         val activity = mainActivityRule.launchActivity(null)
-        val result = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+
+        bluetoothPreconditions(activity)
+
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == "E9:98:86:03:D5:9F" } // Write the mac address for your own device here
+            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
@@ -180,12 +198,11 @@ class EnqueueUnitTest {
             }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .timeout(20L, TimeUnit.SECONDS)
-
-        check(result.blockingGet() == Triple(0, 0, 0))
+            .test()
+            .await()
+            .assertValue(Triple(0, 0, 0))
 
         mainActivityRule.finishActivity()
-
-        Thread.sleep(5000)
     }
 
     companion object {

@@ -8,8 +8,6 @@ import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.UnicastSubject
 import org.junit.Test
 import java.util.concurrent.TimeUnit
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.fail
 
 class RxJavaUnitTest {
@@ -53,7 +51,9 @@ class RxJavaUnitTest {
             .doOnDispose {
                 println("I/O disposed")
             }
-            .run { assertEquals(blockingGet(), 0L) }
+            .test()
+            .awaitCount(1)
+            .assertValue(0L)
     }
 
     @Test
@@ -93,7 +93,9 @@ class RxJavaUnitTest {
             .doOnDispose {
                 println("I/O disposed")
             }
-            .run { assertEquals(blockingGet(), null) }
+            .test()
+            .await()
+            .assertComplete()
     }
 
     @Test
@@ -129,7 +131,9 @@ class RxJavaUnitTest {
             .doOnDispose {
                 println("I/O disposed")
             }
-            .run { assertFailsWith(Throwable::class) { blockingGet() } }
+            .test()
+            .await()
+            .assertFailure(Throwable::class.java)
     }
 
     @Test
@@ -144,7 +148,9 @@ class RxJavaUnitTest {
                 println("error : ${it.error}")
                 println("complete : ${it.isOnComplete}")
             }
-            .run { assertEquals(blockingLast(), 2) }
+            .test()
+            .await()
+            .assertValueAt(2, 2)
     }
 
     private class ExceptedException : Throwable()
@@ -161,15 +167,9 @@ class RxJavaUnitTest {
                 println("error : ${it.error}")
                 println("complete : ${it.isOnComplete}")
             }
-            .run {
-                assertFailsWith<ExceptedException> {
-                    try {
-                        blockingIterable().last()
-                    } catch (ex: RuntimeException) {
-                        throw ex.cause!!
-                    }
-                }
-            }
+            .test()
+            .await()
+            .assertFailure(ExceptedException::class.java, 0, 1, 2)
     }
 
     @Test
@@ -184,7 +184,10 @@ class RxJavaUnitTest {
                 println("error : ${it.error}")
                 println("complete : ${it.isOnComplete}")
             }
-            .run { assertEquals(3, blockingIterable().count()) }
+
+            .test()
+            .await()
+            .assertValueCount(3)
     }
 
     @Test
@@ -202,7 +205,9 @@ class RxJavaUnitTest {
             )
             subject.onNext(5)
         }
-            .run { assertEquals(5, blockingGet()) }
+            .test()
+            .await()
+            .assertValue(5)
     }
 
     @Test
@@ -221,15 +226,9 @@ class RxJavaUnitTest {
                 )
                 subject.onError(ExceptedException())
             }
-            .run {
-                assertFailsWith<ExceptedException> {
-                    try {
-                        blockingGet()
-                    } catch (ex: RuntimeException) {
-                        throw ex.cause!!
-                    }
-                }
-            }
+            .test()
+            .await()
+            .assertFailure(ExceptedException::class.java)
     }
 
     @Test
@@ -258,10 +257,9 @@ class RxJavaUnitTest {
                         { println("Excepted error correctly catch") }
                     )
             }, BackpressureStrategy.BUFFER)
-            .blockingSubscribe(
-                { println("Everything is fine, value: $it") },
-                { fail() }
-            )
+            .test()
+            .await()
+            .assertValues(0, 1, 2)
     }
 
     @Test
@@ -271,7 +269,7 @@ class RxJavaUnitTest {
 
         val obs = Observable.interval(0, 50, TimeUnit.MILLISECONDS)
 
-        val result = obs
+        obs
             .takeUntil(obs.filter { it == 0L })
             .switchMap {
                 when (it) {
@@ -281,10 +279,9 @@ class RxJavaUnitTest {
                     else -> throw IllegalStateException()
                 }
             }
-            .blockingIterable()
-            .toList()
-
-        check(result.isEmpty())
+            .test()
+            .await()
+            .assertValueCount(0)
     }
 
     @Test
@@ -294,7 +291,7 @@ class RxJavaUnitTest {
 
         val obs = Observable.interval(0, 50, TimeUnit.MILLISECONDS)
 
-        val result = obs
+        obs
             .takeUntil(obs.filter { it == 2L })
             .switchMap {
                 when (it) {
@@ -304,10 +301,9 @@ class RxJavaUnitTest {
                     else -> throw IllegalStateException()
                 }
             }
-            .blockingIterable()
-            .toList()
-
-        check(result.size == 1)
+            .test()
+            .await()
+            .assertValueCount(1)
     }
 
     @Test
@@ -338,12 +334,8 @@ class RxJavaUnitTest {
 
         val subject = UnicastSubject.create<Maybe<Long>>()
 
-        val disp = subject
+        subject
             .concatMapMaybe { it }
-            .subscribe(
-                { println("Queue: A maybe is consumed") },
-                { println("Queue: Error received") }
-            )
 
         subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 1 sub") }.doOnEvent { t1, t2 -> println("Timer 1 event $t1 $t2") })
         subject.onNext(Maybe.timer(100, TimeUnit.MILLISECONDS).doOnSubscribe { println("Timer 2 sub") }.doOnEvent { t1, t2 -> println("Timer 2 event $t1 $t2") })
@@ -376,7 +368,7 @@ class RxJavaUnitTest {
 
         val operation = Single.timer(20, TimeUnit.MILLISECONDS)
 
-        val result = state
+        state
             .flatMapSingle {
                 Single.create<Long> { downStream ->
                     val singleToEnqueue = operation
@@ -387,8 +379,9 @@ class RxJavaUnitTest {
                 }
             }
             .firstElement()
-
-        check(result.blockingGet() == 0L)
+            .test()
+            .await()
+            .assertValue(0)
     }
 
     @Test
@@ -412,7 +405,7 @@ class RxJavaUnitTest {
 
         val operation = Single.timer(150, TimeUnit.MILLISECONDS)
 
-        val result = state
+        state
             .flatMapSingle {
                 Single.create<Long> { downStream ->
                     val singleToEnqueue = operation
@@ -423,12 +416,9 @@ class RxJavaUnitTest {
                 }
             }
             .firstElement()
-
-        try {
-            result.blockingGet()
-        } catch (_: IllegalStateException) {
-
-        }
+            .test()
+            .await()
+            .assertFailure(IllegalStateException::class.java)
     }
 
     @Test
@@ -477,11 +467,7 @@ class RxJavaUnitTest {
             }
             .firstElement()
 
-        check(result1.blockingGet() == 0L)
-        try {
-            result2.blockingGet()
-        } catch (_: IllegalStateException) {
-
-        }
+        result1.test().await().assertValue(0)
+        result2.test().await().assertFailure(IllegalStateException::class.java)
     }
 }
