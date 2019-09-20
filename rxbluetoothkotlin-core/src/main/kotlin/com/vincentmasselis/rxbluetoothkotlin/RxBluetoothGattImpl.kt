@@ -66,19 +66,6 @@ class RxBluetoothGattImpl(
             }
         })
 
-    /**
-     * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the [Status]
-     * when a disconnection with the device occurs.
-     *
-     * @return
-     * onNext [Unit] if the device is ready for an I/O operation (it is emitted only once).
-     *
-     * onComplete If the disconnection is excepted (by calling [disconnect] for example), it just completes.
-     *
-     * onError with [SimpleDeviceDisconnected] or [BluetoothIsTurnedOff]
-     *
-     * @see BluetoothGattCallback.onConnectionStateChange
-     */
     override fun livingConnection(): Observable<Unit> = callback.livingConnection().handleCallbackDisconnection(::SimpleDeviceDisconnected)
 
     // -------------------- I/O Tools
@@ -89,10 +76,10 @@ class RxBluetoothGattImpl(
         .subscribe()
 
     /**
-     * [enqueue] is a useful method which avoid multiple I/O operation on the [BluetoothGatt] at the same time and it does every one on the main thread.
+     * [enqueue] is a useful method which avoid multiple I/O operation on the [BluetoothGatt] at the same time. Additionally, enqueue does every request on the main thread.
      *
-     * @param [exceptionConverter] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
-     * calling method. It helps the downstream to handle the exception and find where and why the exception was fired.
+     * @param [exceptionConverter] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every
+     * data from your calling method. It helps the downstream to handle the exception and find where and why the exception was fired.
      */
     @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
     private fun <T> Single<T>.enqueue(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Maybe<T> = callback
@@ -122,21 +109,6 @@ class RxBluetoothGattImpl(
 
     // -------------------- I/O Operations
 
-    /**
-     * Reactive way to read the remote [RSSI] from the [source].
-     *
-     * @return
-     * onSuccess with an Int containing the RSSI if the value is correctly read
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while reading. It can emit [RssiDeviceDisconnected], [CannotInitialize.CannotInitializeRssiReading], [IOFailed.RssiReadingFailed] and
-     * [BluetoothIsTurnedOff]
-     *
-     * @see RSSI
-     * @see BluetoothGatt.readRemoteRssi
-     * @see BluetoothGattCallback.onReadRemoteRssi
-     */
     override fun readRemoteRssi(): Maybe<Int> = Single
         .create<RSSI> { downStream ->
             downStream.setDisposable(callback.onRemoteRssiRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -149,21 +121,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(it.rssi)
         }
 
-    /**
-     * Reactive way to fetch a [List] of [BluetoothGattService] from the [source].
-     *
-     * @return
-     * onSuccess with a the [List] of [BluetoothGattService] when services are correctly read.
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while reading. It can emit [DiscoverServicesDeviceDisconnected], [CannotInitialize.CannotInitializeServicesDiscovering],
-     * [IOFailed.ServiceDiscoveringFailed] and [BluetoothIsTurnedOff]
-     *
-     * @see BluetoothGattService
-     * @see BluetoothGatt.discoverServices
-     * @see BluetoothGattCallback.onServicesDiscovered
-     */
     override fun discoverServices(): Maybe<List<BluetoothGattService>> = Single
         .create<Int> { downStream ->
             downStream.setDisposable(callback.onServicesDiscovered.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -176,21 +133,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(source.services)
         }
 
-    /**
-     * Reactive way to read MTU from [source]
-     *
-     * @return
-     * onSuccess with an Int containing the MTU returned by [source] if the request is successful
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while writing. It can emit [MtuDeviceDisconnected], [CannotInitialize.CannotInitializeMtuRequesting], [IOFailed.MtuRequestingFailed] and
-     * [BluetoothIsTurnedOff].
-     *
-     * @see MTU
-     * @see BluetoothGatt.requestMtu
-     * @see BluetoothGattCallback.onMtuChanged
-     */
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     override fun requestMtu(mtu: Int): Maybe<Int> = Single
         .create<MTU> { downStream ->
@@ -204,23 +146,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(it.mtu)
         }
 
-    /**
-     * Reactive way to read PHY from [source]
-     *
-     * If you don't know what PHY is, consider read this before using it :
-     * [https://devzone.nordicsemi.com/blogs/1093/taking-a-deeper-dive-into-bluetooth-5]
-     *
-     * @return
-     * onSuccess with the [ConnectionPHY] returned by [source] when the read is successful
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while writing. It can emit [ReadPhyDeviceDisconnected], [IOFailed.PhyReadFailed] and [BluetoothIsTurnedOff].
-     *
-     * @see PHY
-     * @see BluetoothGatt.readPhy
-     * @see BluetoothGattCallback.onPhyRead
-     */
     @RequiresApi(Build.VERSION_CODES.O)
     override fun readPhy(): Maybe<ConnectionPHY> = Single
         .create<PHY> { downStream ->
@@ -234,23 +159,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(it.connectionPHY)
         }
 
-    /**
-     * Reactive way to set preferred PHY to [source]
-     *
-     * If you don't know what PHY is, consider read this before using it :
-     * [https://devzone.nordicsemi.com/blogs/1093/taking-a-deeper-dive-into-bluetooth-5]
-     *
-     * @return
-     * onSuccess with the [ConnectionPHY] returned by [source] if the update is successful
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while writing. It can emit [SetPreferredPhyDeviceDisconnected], [IOFailed.SetPreferredPhyFailed] and [BluetoothIsTurnedOff].
-     *
-     * @see PHY
-     * @see BluetoothGatt.setPreferredPhy
-     * @see BluetoothGattCallback.onPhyUpdate
-     */
     @RequiresApi(Build.VERSION_CODES.O)
     override fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY> = Single
         .create<PHY> { downStream ->
@@ -264,21 +172,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(connectionPhy)
         }
 
-    /**
-     * Reactive way to read a value from [characteristic].
-     *
-     * @return
-     * onSuccess with the value [ByteArray] when the [characteristic] is correctly read.
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while reading. It can emit [CharacteristicReadDeviceDisconnected], [CannotInitialize.CannotInitializeCharacteristicReading],
-     * [IOFailed.CharacteristicReadingFailed] and [BluetoothIsTurnedOff]
-     *
-     * @see BluetoothGattCharacteristic
-     * @see BluetoothGatt.readCharacteristic
-     * @see BluetoothGattCallback.onCharacteristicRead
-     */
     override fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray> = Single
         .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
             downStream.setDisposable(callback.onCharacteristicRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -303,21 +196,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(readCharacteristic.value)
         }
 
-    /**
-     * Reactive way to write a [value] into a [characteristic].
-     *
-     * @return
-     * onSuccess with the written [BluetoothGattCharacteristic] when [value] is correctly wrote
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while writing. It can emit [CharacteristicWriteDeviceDisconnected], [CannotInitialize.CannotInitializeCharacteristicWrite],
-     * [IOFailed.CharacteristicWriteFailed] and [BluetoothIsTurnedOff]
-     *
-     * @see BluetoothGattCharacteristic
-     * @see BluetoothGatt.writeCharacteristic
-     * @see BluetoothGattCallback.onCharacteristicWrite
-     */
     override fun write(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic> = Single
         .create<Pair<BluetoothGattCharacteristic, Int>> { downStream ->
             downStream.setDisposable(callback.onCharacteristicWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -352,22 +230,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(wroteCharacteristic)
         }
 
-    /**
-     * Enables notification for the [characteristic]. Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from the [write] method.
-     *
-     * @param checkIfAlreadyEnabled Set [checkIfAlreadyEnabled] to true to avoid enabling twice the same notification.
-     *
-     * @param indication By default, notification is used, you can change this and use indication instead. Indication is a little bit slower than notification because it has an ACK mechanism for every
-     * [ByteArray] received for [characteristic]. Learn more [here](https://devzone.nordicsemi.com/f/nordic-q-a/99/notification-indication-difference/533#533).
-     *
-     * @return
-     * onSuccess with the written [BluetoothGattCharacteristic] when notification is enabled
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while turning on notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
-     * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
-     */
     override fun enableNotification(characteristic: BluetoothGattCharacteristic, indication: Boolean, checkIfAlreadyEnabled: Boolean): Maybe<BluetoothGattCharacteristic> =
         rxChangeNotification(
             characteristic,
@@ -375,19 +237,6 @@ class RxBluetoothGattImpl(
             checkIfAlreadyEnabled
         )
 
-    /**
-     * Disables notification for the [characteristic]. Because disabling notification require an descriptor write, the [Maybe] returned can fire every error from the [write] method.
-     *
-     * @param checkIfAlreadyDisabled Set [checkIfAlreadyDisabled] to true to avoid disabling twice the same notification.
-     *
-     * @return
-     * onSuccess with the written [BluetoothGattCharacteristic] when notification is disabled
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while turning off notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
-     * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
-     */
     override fun disableNotification(characteristic: BluetoothGattCharacteristic, checkIfAlreadyDisabled: Boolean): Maybe<BluetoothGattCharacteristic> =
         rxChangeNotification(
             characteristic,
@@ -423,22 +272,6 @@ class RxBluetoothGattImpl(
                     .map { characteristic }
         }
 
-    /**
-     * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [enableNotification] before listening this method.
-     *
-     * @param composer By default, the source Flowable will handle back pressure by using the [Flowable.onBackpressureBuffer] operator, you can change this behavior by replacing
-     * [composer] by your own implementation.
-     *
-     * @return
-     * onNext with the [ByteArray] value from the [characteristic]
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while listening. It can emit [BluetoothIsTurnedOff] and [ListenChangesDeviceDisconnected].
-     *
-     * @see enableNotification
-     * @see BluetoothGattCallback.onCharacteristicChanged
-     */
     override fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic>
@@ -451,21 +284,6 @@ class RxBluetoothGattImpl(
         .map { it.value }
         .handleCallbackDisconnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
 
-    /**
-     * Reactive way to read a value from a [descriptor].
-     *
-     * @return
-     * onSuccess with the value [ByteArray] when the [descriptor] is correctly read.
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while reading. It can emit [DescriptorReadDeviceDisconnected], [CannotInitialize.CannotInitializeDescriptorReading],
-     * [IOFailed.DescriptorReadingFailed] and [BluetoothIsTurnedOff].
-     *
-     * @see BluetoothGattDescriptor
-     * @see BluetoothGatt.readDescriptor
-     * @see BluetoothGattCallback.onDescriptorRead
-     */
     override fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> = Single
         .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
             downStream.setDisposable(callback.onDescriptorRead.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
@@ -498,21 +316,6 @@ class RxBluetoothGattImpl(
             else Maybe.just(readDescriptor.value)
         }
 
-    /**
-     * Reactive way to write a [value] into a [descriptor].
-     *
-     * @return
-     * onSuccess with the written [BluetoothGattDescriptor] when [value] is correctly wrote
-     *
-     * onComplete when the connection of [source] is closed by the user
-     *
-     * onError if an error has occurred while writing. It can emit [DescriptorWriteDeviceDisconnected], [CannotInitialize.CannotInitializeDescriptorWrite],
-     * [IOFailed.DescriptorWriteFailed] and [BluetoothIsTurnedOff].
-     *
-     * @see BluetoothGattDescriptor
-     * @see BluetoothGatt.writeDescriptor
-     * @see BluetoothGattCallback.onDescriptorWrite
-     */
     override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean): Maybe<BluetoothGattDescriptor> = Single
         .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
             if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {

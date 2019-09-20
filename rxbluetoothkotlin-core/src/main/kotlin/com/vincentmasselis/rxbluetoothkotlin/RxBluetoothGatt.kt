@@ -1,6 +1,9 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.*
+import android.os.Build
+import androidx.annotation.RequiresApi
+import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt.Callback
 import io.reactivex.*
 import io.reactivex.annotations.CheckReturnValue
@@ -66,6 +69,8 @@ interface RxBluetoothGatt {
          *
          * It emit `onNext` only once, `onError` are called only when the device disconnects.
          *
+         * NOTE: Consider using [RxBluetoothGatt.livingConnection] instead. [Callback.livingConnection] is should be only used to transmit connection state to [RxBluetoothGatt]
+         *
          * @return
          * onNext with [Unit] when the connection is ready
          *
@@ -80,58 +85,245 @@ interface RxBluetoothGatt {
         fun disconnection()
     }
 
+
     /**
-     * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
-     *
-     * It emit `onNext` only once, `onError` are called only when the device disconnects.
+     * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the [Status] when a disconnection with the device occurs.
      *
      * @return
-     * onNext with [Unit] when the connection is ready
+     * onNext [Unit] if the device is ready for an I/O operation (it is emitted only once).
      *
-     * onComplete is called when the disconnection was requested by calling [disconnect]
+     * onComplete If the disconnection is excepted by calling [disconnect].
      *
-     * onError with [BluetoothIsTurnedOff] or [DeviceDisconnected.SimpleDeviceDisconnected] when a unexpected disconnection occurs, fires `onComplete` if the connection were
-     * expected
+     * onError with [SimpleDeviceDisconnected] or [BluetoothIsTurnedOff]
+     *
+     * @see BluetoothGattCallback.onConnectionStateChange
      */
     @CheckReturnValue
     fun livingConnection(): Observable<Unit>
 
+    /**
+     * Reactive way to read the remote [RSSI] from the [source].
+     *
+     * @return
+     * onSuccess with an Int containing the RSSI if the value is correctly read
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while reading. It can emit [RssiDeviceDisconnected], [CannotInitialize.CannotInitializeRssiReading], [IOFailed.RssiReadingFailed] and
+     * [BluetoothIsTurnedOff]
+     *
+     * @see RSSI
+     * @see BluetoothGatt.readRemoteRssi
+     * @see BluetoothGattCallback.onReadRemoteRssi
+     */
     @CheckReturnValue
     fun readRemoteRssi(): Maybe<Int>
 
+    /**
+     * Reactive way to fetch a [List] of [BluetoothGattService] from the [source].
+     *
+     * @return
+     * onSuccess with a the [List] of [BluetoothGattService] when services are correctly read.
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while reading. It can emit [DiscoverServicesDeviceDisconnected], [CannotInitialize.CannotInitializeServicesDiscovering],
+     * [IOFailed.ServiceDiscoveringFailed] and [BluetoothIsTurnedOff]
+     *
+     * @see BluetoothGattService
+     * @see BluetoothGatt.discoverServices
+     * @see BluetoothGattCallback.onServicesDiscovered
+     */
     @CheckReturnValue
     fun discoverServices(): Maybe<List<BluetoothGattService>>
 
+    /**
+     * Reactive way to read MTU from [source]
+     *
+     * @return
+     * onSuccess with an Int containing the MTU returned by [source] if the request is successful
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while writing. It can emit [MtuDeviceDisconnected], [CannotInitialize.CannotInitializeMtuRequesting], [IOFailed.MtuRequestingFailed] and
+     * [BluetoothIsTurnedOff].
+     *
+     * @see MTU
+     * @see BluetoothGatt.requestMtu
+     * @see BluetoothGattCallback.onMtuChanged
+     */
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @CheckReturnValue
     fun requestMtu(mtu: Int): Maybe<Int>
 
+    /**
+     * Reactive way to read PHY from [source]
+     *
+     * If you don't know what PHY is, consider read this before using it :
+     * [https://devzone.nordicsemi.com/blogs/1093/taking-a-deeper-dive-into-bluetooth-5]
+     *
+     * @return
+     * onSuccess with the [ConnectionPHY] returned by [source] when the read is successful
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while writing. It can emit [ReadPhyDeviceDisconnected], [IOFailed.PhyReadFailed] and [BluetoothIsTurnedOff].
+     *
+     * @see PHY
+     * @see BluetoothGatt.readPhy
+     * @see BluetoothGattCallback.onPhyRead
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
     @CheckReturnValue
     fun readPhy(): Maybe<ConnectionPHY>
 
+    /**
+     * Reactive way to set preferred PHY to [source]
+     *
+     * If you don't know what PHY is, consider read this before using it :
+     * [https://devzone.nordicsemi.com/blogs/1093/taking-a-deeper-dive-into-bluetooth-5]
+     *
+     * @return
+     * onSuccess with the [ConnectionPHY] returned by [source] if the update is successful
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while writing. It can emit [SetPreferredPhyDeviceDisconnected], [IOFailed.SetPreferredPhyFailed] and [BluetoothIsTurnedOff].
+     *
+     * @see PHY
+     * @see BluetoothGatt.setPreferredPhy
+     * @see BluetoothGattCallback.onPhyUpdate
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
     @CheckReturnValue
     fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY>
 
+    /**
+     * Reactive way to read a value from [characteristic].
+     *
+     * @return
+     * onSuccess with the value [ByteArray] when the [characteristic] is correctly read.
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while reading. It can emit [CharacteristicReadDeviceDisconnected], [CannotInitialize.CannotInitializeCharacteristicReading],
+     * [IOFailed.CharacteristicReadingFailed] and [BluetoothIsTurnedOff]
+     *
+     * @see BluetoothGattCharacteristic
+     * @see BluetoothGatt.readCharacteristic
+     * @see BluetoothGattCallback.onCharacteristicRead
+     */
     @CheckReturnValue
     fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray>
 
+    /**
+     * Reactive way to write a [value] into a [characteristic].
+     *
+     * @return
+     * onSuccess with the written [BluetoothGattCharacteristic] when [value] is correctly wrote
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while writing. It can emit [CharacteristicWriteDeviceDisconnected], [CannotInitialize.CannotInitializeCharacteristicWrite],
+     * [IOFailed.CharacteristicWriteFailed] and [BluetoothIsTurnedOff]
+     *
+     * @see BluetoothGattCharacteristic
+     * @see BluetoothGatt.writeCharacteristic
+     * @see BluetoothGattCallback.onCharacteristicWrite
+     */
     @CheckReturnValue
     fun write(characteristic: BluetoothGattCharacteristic, value: ByteArray): Maybe<BluetoothGattCharacteristic>
 
+    /**
+     * Enables notification for the [characteristic]. Because enabling notification require an descriptor write, the [Maybe] returned can fire every error from the [write] method.
+     *
+     * @param checkIfAlreadyEnabled Set [checkIfAlreadyEnabled] to true to avoid enabling twice the same notification.
+     *
+     * @param indication By default, notification is used, you can change this and use indication instead. Indication is a little bit slower than notification because it has an ACK mechanism for every
+     * [ByteArray] received for [characteristic]. Learn more [here](https://devzone.nordicsemi.com/f/nordic-q-a/99/notification-indication-difference/533#533).
+     *
+     * @return
+     * onSuccess with the written [BluetoothGattCharacteristic] when notification is enabled
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while turning on notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
+     * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
+     */
     @CheckReturnValue
     fun enableNotification(characteristic: BluetoothGattCharacteristic, indication: Boolean = false, checkIfAlreadyEnabled: Boolean = true): Maybe<BluetoothGattCharacteristic>
 
+    /**
+     * Disables notification for the [characteristic]. Because disabling notification require an descriptor write, the [Maybe] returned can fire every error from the [write] method.
+     *
+     * @param checkIfAlreadyDisabled Set [checkIfAlreadyDisabled] to true to avoid disabling twice the same notification.
+     *
+     * @return
+     * onSuccess with the written [BluetoothGattCharacteristic] when notification is disabled
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while turning off notification for [characteristic]. It can emit [ChangeNotificationDeviceDisconnected],
+     * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
+     */
     @CheckReturnValue
     fun disableNotification(characteristic: BluetoothGattCharacteristic, checkIfAlreadyDisabled: Boolean = true): Maybe<BluetoothGattCharacteristic>
 
+    /**
+     * Reactive way to observe [characteristic] changes. This method doesn't subscribe to notification, you have to call [enableNotification] before listening this method.
+     *
+     * @param composer By default, the source Flowable will handle back pressure by using the [Flowable.onBackpressureBuffer] operator, you can change this behavior by replacing
+     * [composer] by your own implementation.
+     *
+     * @return
+     * onNext with the [ByteArray] value from the [characteristic]
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while listening. It can emit [BluetoothIsTurnedOff] and [ListenChangesDeviceDisconnected].
+     *
+     * @see enableNotification
+     * @see BluetoothGattCallback.onCharacteristicChanged
+     */
     @CheckReturnValue
     fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic> = FlowableTransformer { it.onBackpressureBuffer() }
     ): Flowable<ByteArray>
 
+    /**
+     * Reactive way to read a value from a [descriptor].
+     *
+     * @return
+     * onSuccess with the value [ByteArray] when the [descriptor] is correctly read.
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while reading. It can emit [DescriptorReadDeviceDisconnected], [CannotInitialize.CannotInitializeDescriptorReading],
+     * [IOFailed.DescriptorReadingFailed] and [BluetoothIsTurnedOff].
+     *
+     * @see BluetoothGattDescriptor
+     * @see BluetoothGatt.readDescriptor
+     * @see BluetoothGattCallback.onDescriptorRead
+     */
     @CheckReturnValue
     fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray>
 
+    /**
+     * Reactive way to write a [value] into a [descriptor].
+     *
+     * @return
+     * onSuccess with the written [BluetoothGattDescriptor] when [value] is correctly wrote
+     *
+     * onComplete when the connection of [source] is closed by the user
+     *
+     * onError if an error has occurred while writing. It can emit [DescriptorWriteDeviceDisconnected], [CannotInitialize.CannotInitializeDescriptorWrite],
+     * [IOFailed.DescriptorWriteFailed] and [BluetoothIsTurnedOff].
+     *
+     * @see BluetoothGattDescriptor
+     * @see BluetoothGatt.writeDescriptor
+     * @see BluetoothGattCallback.onDescriptorWrite
+     */
     @CheckReturnValue
     fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor>
 
