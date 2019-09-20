@@ -33,6 +33,7 @@ fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().fi
  *
  * @see RxBluetoothGatt.livingConnection
  */
+@Suppress("EXTENSION_SHADOWED_BY_MEMBER")
 @Deprecated(
     "disconnect method extension is not allowed anymore, consider using the method from the RxBluetoothGatt interface directly",
     ReplaceWith("RxBluetoothGatt.disconnect", "com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt")

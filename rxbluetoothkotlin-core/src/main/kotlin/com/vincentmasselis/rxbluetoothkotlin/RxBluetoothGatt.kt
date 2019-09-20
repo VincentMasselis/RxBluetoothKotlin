@@ -12,7 +12,7 @@ import io.reactivex.annotations.CheckReturnValue
  * Most of the methods here are listening to an instance of [Callback], so using a [Callback] decorator could change the behavior of a [RxBluetoothGatt] implementation, it
  * could be useful but also very dangerous. Use the decorators wisely.
  *
- * The default implementation is [RxBluetoothGattImpl].
+ * The default implementation of [RxBluetoothGatt] is [RxBluetoothGattImpl].
  */
 interface RxBluetoothGatt {
 
@@ -28,35 +28,72 @@ interface RxBluetoothGatt {
      *
      * @see RxBluetoothGattCallbackImpl
      */
-    abstract class Callback : BluetoothGattCallback() {
+    interface Callback {
 
-        /** Unlike the other [Observable]s this one MUST emit a subscription if a value is known */
-        abstract val onConnectionState: Observable<ConnectionState>
+        /** Original callback instance used by the system */
+        val source: BluetoothGattCallback
 
-        abstract val onRemoteRssiRead: Observable<RSSI>
+        /** Unlike the other Observables this one MUST emit a subscription the last known value */
+        val onConnectionState: Observable<ConnectionState>
 
-        abstract val onServicesDiscovered: Observable<Status>
+        val onRemoteRssiRead: Observable<RSSI>
 
-        abstract val onMtuChanged: Observable<MTU>
+        val onServicesDiscovered: Observable<Status>
 
-        abstract val onPhyRead: Observable<PHY>
+        val onMtuChanged: Observable<MTU>
 
-        abstract val onPhyUpdate: Observable<PHY>
+        val onPhyRead: Observable<PHY>
 
-        abstract val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        val onPhyUpdate: Observable<PHY>
 
-        abstract val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        abstract val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
+        val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        abstract val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
+        val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
 
-        abstract val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
+        val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
 
-        abstract val onReliableWriteCompleted: Observable<Status>
+        val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
 
+        val onReliableWriteCompleted: Observable<Status>
+
+        /** Fired by [livingConnection] when the connection with the sensor is lost */
+        class StateDisconnected(val status: Int?) : Throwable()
+
+        /**
+         * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
+         *
+         * It emit `onNext` only once, `onError` are called only when the device disconnects.
+         *
+         * @return
+         * onNext with [Unit] when the connection is ready
+         *
+         * onComplete is never called
+         *
+         * onError with [BluetoothIsTurnedOff] or [StateDisconnected] when a unexpected disconnection occurs, if the connection were expected, [StateDisconnected.status] is null.
+         */
+        @CheckReturnValue
+        fun livingConnection(): Observable<Unit>
+
+        /** Disconnects */
+        @CheckReturnValue
+        fun disconnect()
     }
 
+    /**
+     * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
+     *
+     * It emit `onNext` only once, `onError` are called only when the device disconnects.
+     *
+     * @return
+     * onNext with [Unit] when the connection is ready
+     *
+     * onComplete is called when the disconnection was requested by calling [disconnect]
+     *
+     * onError with [BluetoothIsTurnedOff] or [DeviceDisconnected.SimpleDeviceDisconnected] when a unexpected disconnection occurs, fires `onComplete` if the connection were
+     * expected
+     */
     @CheckReturnValue
     fun livingConnection(): Observable<Unit>
 
@@ -101,5 +138,4 @@ interface RxBluetoothGatt {
 
     @CheckReturnValue
     fun disconnect(): Completable
-
 }

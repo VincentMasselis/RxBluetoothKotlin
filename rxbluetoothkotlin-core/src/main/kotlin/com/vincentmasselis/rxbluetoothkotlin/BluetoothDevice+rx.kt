@@ -58,8 +58,8 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
         val callbacks = callbackConstructor()
 
         logger?.v(TAG, "connectGatt with autoConnect $autoConnect")
-        val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(ContextHolder.context, autoConnect, callbacks, BluetoothDevice.TRANSPORT_LE)
-        else connectGatt(ContextHolder.context, autoConnect, callbacks)
+        val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(ContextHolder.context, autoConnect, callbacks.source, BluetoothDevice.TRANSPORT_LE)
+        else connectGatt(ContextHolder.context, autoConnect, callbacks.source)
 
         if (gatt == null) {
             logger?.v(TAG, "connectGatt method returned null")

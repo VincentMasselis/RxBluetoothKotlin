@@ -2,10 +2,7 @@ package com.vincentmasselis.rxbluetoothkotlin
 
 import android.annotation.SuppressLint
 import android.bluetooth.*
-import android.bluetooth.BluetoothAdapter.*
 import android.bluetooth.BluetoothGatt.GATT_SUCCESS
-import android.content.Context
-import android.content.IntentFilter
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
@@ -13,16 +10,16 @@ import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.functions.Consumer
 import io.reactivex.functions.Function
-import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.UnicastSubject
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 /**
- * [source] is always closed after a disconnection, it cannot be reopened, you have a to create another one by calling [BluetoothDevice.connectRxGatt]. You can easily
- * find which [BluetoothDevice] was used in the current object by calling [source.device].
+ * When a disconnection occurs, connection is always closed after a disconnection and it cannot be reopened. To connect again, you have a to create another instance of [RxBluetoothGatt] by calling
+ * [BluetoothDevice.connectRxGatt].
+ *
+ * You can easily find which [BluetoothDevice] was used in the current object by calling [RxBluetoothGatt.source].
  */
 @SuppressLint("CheckResult")
 class RxBluetoothGattImpl(
@@ -31,91 +28,12 @@ class RxBluetoothGattImpl(
     override val callback: RxBluetoothGatt.Callback
 ) : RxBluetoothGatt {
 
-    private sealed class ConnectionState {
-        /** Default state until onConnectionStateChanged emit for the first time */
-        object Initializing : ConnectionState()
-
-        object Active : ConnectionState()
-
-        /** [reason] is null when a connection is fired manually by calling [disconnect], -1 if the bluetooth is turned off */
-        data class Lost(val reason: Status?) : ConnectionState()
-    }
-
-    private val stateSubject = BehaviorSubject.createDefault<ConnectionState>(ConnectionState.Initializing)
-
-    private val bluetoothManager = ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-
-    // ---------------- Observables which are listen for system input and updates the current state
-
-    /**
-     * On the previous Android version, turning off the Bluetooth calls onConnectionStateChange which automatically closes the BluetoothGatt connection. Since Oreo,
-     * onConnectionStateChange is no longer called so I have to manually close the connection the be sure that BluetoothGatt will not be used anymore and a new
-     * BluetoothGatt will be created.
-     */
-    private val bluetoothDisp = IntentFilter(ACTION_STATE_CHANGED)
-        .toObservable(ContextHolder.context)
-        .map { (_, intent) -> intent.getIntExtra(EXTRA_STATE, ERROR) }
-        .startWith(Observable.fromCallable {
-            if (bluetoothManager.adapter.isEnabled) STATE_ON
-            else STATE_OFF
-        })
-        .distinctUntilChanged()
-        .subscribe { if (it != STATE_ON) stateSubject.onNext(ConnectionState.Lost(-1)) }
-
-    private val connectionStateDisp = callback
-        .onConnectionState
-        .subscribe { (bluetoothState, status) ->
-            logger?.w(TAG, "New connection state, state: $bluetoothState, status $status, connectionState: ${stateSubject.value}")
-            @Suppress("UNUSED_VARIABLE") val nothing = when (stateSubject.value!!) {
-                ConnectionState.Initializing -> {
-                    when {
-                        bluetoothState == STATE_CONNECTED && status == GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Active)
-                        bluetoothState == STATE_CONNECTED && status != GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == STATE_DISCONNECTED && status == GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(null))
-                        bluetoothState == STATE_DISCONNECTED && status != GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(status))
-                        status != GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(status)) // If STATE_CONNECTING or STATE_DISCONNECTING are emitting values != from GATT_SUCCESS, I fire them
-                        else -> { // If STATE_CONNECTING or STATE_DISCONNECTING are emitting GATT_SUCCESS values, I ignore them
-                        }
-                    }
-                }
-                ConnectionState.Active -> {
-                    when {
-                        bluetoothState == STATE_CONNECTED && status == GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == STATE_CONNECTED && status != GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == STATE_DISCONNECTED && status == GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(null))
-                        bluetoothState == STATE_DISCONNECTED && status != GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(status))
-                        status != GATT_SUCCESS -> stateSubject.onNext(ConnectionState.Lost(status)) // If STATE_CONNECTING or STATE_DISCONNECTING are emitting values != from GATT_SUCCESS, I fire them
-                        else -> { // If STATE_CONNECTING or STATE_DISCONNECTING are emitting GATT_SUCCESS values, I ignore them
-                        }
-                    }
-                }
-                is ConnectionState.Lost -> {
-                    when {
-                        bluetoothState == STATE_CONNECTED && status == GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == STATE_CONNECTED && status != GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == STATE_DISCONNECTED && status == GATT_SUCCESS -> { // Nothing to do, the state is already set to Lost
-                        }
-                        bluetoothState == STATE_DISCONNECTED && status != GATT_SUCCESS -> { // Nothing to do, the state is already set to Lost
-                        }
-                        status != GATT_SUCCESS -> { // Nothing to do, the state is already set to Lost
-                        }
-                        else -> { // If STATE_CONNECTING or STATE_DISCONNECTING are emitting GATT_SUCCESS values, I ignore them
-                        }
-                    }
-                }
-            }
-        }
-
     // ---------------- Observables which are listen for the current state and send requests to the system
 
     init {
-        stateSubject
-            .filter { it is ConnectionState.Lost }
-            .firstOrError()
+        callback.livingConnection()
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(Consumer {
-                connectionStateDisp.dispose()
-                bluetoothDisp.dispose()
+            .subscribe({}, {
                 operationQueueDisp.dispose()
                 // Automatically disposes when the subject emits
                 source.disconnect()
@@ -127,31 +45,27 @@ class RxBluetoothGattImpl(
 
     // -------------------- Connection
 
-    private object ExpectedDisconnection : Throwable()
+    private inline fun <T> Observable<T>.handleCallbackDisconnection(crossinline exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this
+        .onErrorResumeNext(Function {
+            when (it) {
+                is RxBluetoothGatt.Callback.StateDisconnected ->
+                    if (it.status == null) Observable.empty()
+                    else Observable.error(exceptionConverter(source.device, it.status))
 
-    /**
-     * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
-     *
-     * It emit `onNext` only once, `onError` are called only when the device disconnects.
-     *
-     * @return
-     * onNext with [Unit] when the connection is ready
-     *
-     * onComplete when the connection is closed by the user
-     *
-     * onError with [BluetoothIsTurnedOff] or the result of [exceptionConverter] when a unexpected disconnection occurs, if the connection where expected, [ExpectedDisconnection] is fired.
-     */
-    private fun livingConnection(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Observable<Unit> = stateSubject
-        .switchMap { state ->
-            when (state) {
-                ConnectionState.Initializing -> Observable.empty() // Nothing we can do, let's wait
-                ConnectionState.Active -> Observable.just(Unit) // Excepted case, let's emit
-                is ConnectionState.Lost -> Observable.error( // Listening on a lost connection :(
-                    state.reason?.let { exceptionConverter(source.device, it) }
-                        ?: ExpectedDisconnection
-                )
+                else -> Observable.error(it)
             }
-        }
+        })
+
+    private inline fun <T> Flowable<T>.handleCallbackDisconnection(crossinline exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this
+        .onErrorResumeNext(Function {
+            when (it) {
+                is RxBluetoothGatt.Callback.StateDisconnected ->
+                    if (it.status == null) Flowable.empty()
+                    else Flowable.error(exceptionConverter(source.device, it.status))
+
+                else -> Flowable.error(it)
+            }
+        })
 
     /**
      * Returns a [Observable] that throws a [SimpleDeviceDisconnected] which contains the [Status]
@@ -166,11 +80,7 @@ class RxBluetoothGattImpl(
      *
      * @see BluetoothGattCallback.onConnectionStateChange
      */
-    override fun livingConnection(): Observable<Unit> = livingConnection(DeviceDisconnected::SimpleDeviceDisconnected)
-        .onErrorResumeNext(Function {
-            if (it is ExpectedDisconnection) Observable.empty()
-            else Observable.error(it)
-        })
+    override fun livingConnection(): Observable<Unit> = callback.livingConnection().handleCallbackDisconnection(::SimpleDeviceDisconnected)
 
     // -------------------- I/O Tools
 
@@ -188,8 +98,8 @@ class RxBluetoothGattImpl(
      * @param [this] a single which contains a [BluetoothGatt] I/O operation to do.
      */
     @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
-    private fun <T> Single<T>.enqueue(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Maybe<T> = this@RxBluetoothGattImpl
-        .livingConnection(exceptionConverter) // Surrounding the single to enqueue with livingConnection() to handle disconnection even if the single is not yet enqueued at this time
+    private fun <T> Single<T>.enqueue(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Maybe<T> = callback
+        .livingConnection() // Surrounding the single to enqueue with livingConnection() to handle disconnection even if the single is not yet enqueued at this time
         .flatMapSingle {
             Single.create<T> { downstream ->
                 val singleToEnqueue = this // this is the single to enqueue
@@ -204,16 +114,12 @@ class RxBluetoothGattImpl(
                     .doOnError { downstream.tryOnError(it) }
 
                 // This case should be impossible because it require the livingConnection to `onNext()` while operationQueueDisp is disposed.
-                if (operationQueue.hasObservers().not())
-                    throw IllegalStateException("Cannot enqueue the single, there is no subscriber for the queue")
+                check(operationQueue.hasObservers()) { "Cannot enqueue the single, there is no subscriber for the queue" }
 
                 operationQueue.onNext(singleToEnqueue as Single<Any>)
             }
         }
-        .onErrorResumeNext(Function {
-            if (it is ExpectedDisconnection) Observable.empty()
-            else Observable.error(it)
-        })
+        .handleCallbackDisconnection(exceptionConverter)
         .firstElement()
 
 
@@ -539,16 +445,14 @@ class RxBluetoothGattImpl(
     override fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic>
-    ): Flowable<ByteArray> = livingConnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
+    ): Flowable<ByteArray> = callback
+        .livingConnection()
         .toFlowable(BackpressureStrategy.ERROR)
         .flatMap { callback.onCharacteristicChanged }
         .compose(composer)
         .filter { changedCharacteristic -> changedCharacteristic.uuid == characteristic.uuid }
         .map { it.value }
-        .onErrorResumeNext(Function {
-            if (it is ExpectedDisconnection) Flowable.empty()
-            else Flowable.error(it)
-        })
+        .handleCallbackDisconnection { device, status -> ListenChangesDeviceDisconnected(device, status, characteristic.service, characteristic) }
 
     /**
      * Reactive way to read a value from a [descriptor].
@@ -652,12 +556,7 @@ class RxBluetoothGattImpl(
             else Maybe.just(wroteDescriptor)
         }
 
-    @Synchronized
-    override fun disconnect(): Completable = Completable.defer {
-        if (stateSubject.value !is ConnectionState.Lost)
-            stateSubject.onNext(ConnectionState.Lost(null))
-        livingConnection().ignoreElements()
-    }
+    override fun disconnect(): Completable = livingConnection().ignoreElements().doOnSubscribe { callback.disconnect() }.subscribeOn(AndroidSchedulers.mainThread())
 
     companion object {
         private const val TAG = "RxBluetoothGattImpl"
