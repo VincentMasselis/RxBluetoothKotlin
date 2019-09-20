@@ -112,7 +112,7 @@ class DisconnectionTests {
     fun disconnection5sTest() {
         val activity = mainActivityRule.launchActivity(null)
         bluetoothPreconditions(activity)
-        val gatt = (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
+        (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
             .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here

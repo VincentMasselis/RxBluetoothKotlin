@@ -41,8 +41,8 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSuccess { activity.setMessage("Discovering services") }
             .delay(600, TimeUnit.MILLISECONDS)
+            .doOnSuccess { activity.setMessage("Discovering services") }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
             .doOnSuccess { activity.setMessage("Running tests") }
             .flatMap { gatt ->
@@ -59,6 +59,7 @@ class EnqueueUnitTest {
             }
             .doOnComplete { throw IllegalStateException("Should not complete here") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .timeout(20L, TimeUnit.SECONDS)
             .test()
             .await()
             .assertValueCount(1)
@@ -106,6 +107,7 @@ class EnqueueUnitTest {
             }
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .timeout(20L, TimeUnit.SECONDS)
             .test()
             .await()
             .assertComplete()
