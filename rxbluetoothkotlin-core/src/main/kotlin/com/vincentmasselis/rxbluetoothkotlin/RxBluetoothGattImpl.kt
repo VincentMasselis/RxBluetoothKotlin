@@ -94,8 +94,6 @@ class RxBluetoothGattImpl(
      *
      * @param [exceptionConverter] lambda called when a disconnection occurs. When using this param, you have to create your own [DeviceDisconnected] subclass which contains every data from your
      * calling method. It helps the downstream to handle the exception and find where and why the exception was fired.
-     *
-     * @param [this] a single which contains a [BluetoothGatt] I/O operation to do.
      */
     @Suppress("UNCHECKED_CAST", "UNUSED_VARIABLE")
     private fun <T> Single<T>.enqueue(exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected): Maybe<T> = callback
@@ -400,7 +398,7 @@ class RxBluetoothGattImpl(
 
     private fun rxChangeNotification(characteristic: BluetoothGattCharacteristic, byteArray: ByteArray, checkIfAlreadyChanged: Boolean): Maybe<BluetoothGattCharacteristic> = Single
         .create<Unit> { downStream ->
-            val isEnable = Arrays.equals(byteArray, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
+            val isEnable = byteArray.contentEquals(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE).not()
             logger?.v(TAG, "setCharacteristicNotification ${characteristic.uuid}} to $isEnable")
             if (source.setCharacteristicNotification(characteristic, isEnable).not())
                 downStream.tryOnError(
