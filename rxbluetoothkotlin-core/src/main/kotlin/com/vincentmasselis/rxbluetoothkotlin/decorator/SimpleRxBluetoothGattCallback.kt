@@ -27,5 +27,5 @@ abstract class SimpleRxBluetoothGattCallback(private val concrete: RxBluetoothGa
     override val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>> = concrete.onDescriptorWrite
     override val onReliableWriteCompleted: Observable<Status> = concrete.onReliableWriteCompleted
     override fun livingConnection(): Observable<Unit> = concrete.livingConnection()
-    override fun disconnect() = concrete.disconnect()
+    override fun disconnection() = concrete.disconnection()
 }

@@ -19,7 +19,7 @@ import kotlin.concurrent.withLock
 @SuppressLint("CheckResult")
 class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Callback {
 
-    // ---------------- Converts methods from `BluetoothGattCallback` to `RxBluetoothGatt.Callback`
+    // ---------------- Converts methods from `BluetoothGattCallback` to `RxBluetoothGatt.Callback`'s observables.
 
     override val onConnectionState = BehaviorSubject.create<ConnectionState>()
     override val onRemoteRssiRead = PublishSubject.create<RSSI>()
@@ -84,21 +84,21 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
         onReliableWriteCompleted.onNext(status)
     }
 
+    // ---------------- Connection state
+
     private sealed class ConnectionEvent {
         /** Default state until onConnectionStateChanged emit for the first time */
         object Initializing : ConnectionEvent()
 
         object Active : ConnectionEvent()
 
-        /** [reason] is null when a connection is fired manually by calling [disconnect], -1 if the bluetooth is turned off */
+        /** [reason] is null when a connection is fired manually by calling [disconnection], -1 if the bluetooth is turned off */
         data class Lost(val reason: Status?) : ConnectionEvent()
     }
 
     private val stateSubject = BehaviorSubject.createDefault<ConnectionEvent>(ConnectionEvent.Initializing)
 
-    private val bluetoothManager = ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-
-    // ---------------- Observables which are listen for system input and updates the current state
+    // ---------------- System inputs about the current connection, updates the stateSubject if a disconnection is detected
 
     /**
      * On the previous Android version, turning off the Bluetooth calls onConnectionStateChange which automatically closes the BluetoothGatt connection. Since Oreo,
@@ -109,7 +109,8 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
         .toObservable(ContextHolder.context)
         .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
         .startWith(Observable.fromCallable {
-            if (bluetoothManager.adapter.isEnabled) BluetoothAdapter.STATE_ON
+            if ((ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                BluetoothAdapter.STATE_ON
             else BluetoothAdapter.STATE_OFF
         })
         .distinctUntilChanged()
@@ -157,9 +158,6 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
             }
         }
 
-
-    // ---------------- Observables which are listen for the current state and send requests to the system
-
     init {
         livingConnection()
             .subscribe({}, {
@@ -168,7 +166,7 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
             })
     }
 
-    // -------------------- Connection
+    // -------------------- Connection and disconnection tools
 
     override fun livingConnection(): Observable<Unit> = stateSubject
         .switchMap { state ->
@@ -185,7 +183,7 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
         }
 
     private val disconnectLock = ReentrantLock()
-    override fun disconnect() = disconnectLock.withLock {
+    override fun disconnection() = disconnectLock.withLock {
         if (stateSubject.value !is ConnectionEvent.Lost)
             stateSubject.onNext(ConnectionEvent.Lost(null))
     }

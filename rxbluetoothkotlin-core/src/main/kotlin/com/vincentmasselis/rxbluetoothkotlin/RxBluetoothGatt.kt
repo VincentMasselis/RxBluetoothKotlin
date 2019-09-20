@@ -76,9 +76,8 @@ interface RxBluetoothGatt {
         @CheckReturnValue
         fun livingConnection(): Observable<Unit>
 
-        /** Disconnects */
-        @CheckReturnValue
-        fun disconnect()
+        /** Puts the [Callback] into a disconnected state just like [onConnectionState] would do if the disconnection was unexpected */
+        fun disconnection()
     }
 
     /**
@@ -136,6 +135,10 @@ interface RxBluetoothGatt {
     @CheckReturnValue
     fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor>
 
+    /**
+     * Disconnects the device. If the device is already disconnected, the last known error is fired again. Fires the same errors than [livingConnection] and also completes if the
+     * disconnection was expected.
+     */
     @CheckReturnValue
     fun disconnect(): Completable
 }

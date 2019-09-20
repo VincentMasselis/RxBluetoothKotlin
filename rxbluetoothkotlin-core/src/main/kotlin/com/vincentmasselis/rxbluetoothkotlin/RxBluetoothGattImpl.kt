@@ -28,8 +28,7 @@ class RxBluetoothGattImpl(
     override val callback: RxBluetoothGatt.Callback
 ) : RxBluetoothGatt {
 
-    // ---------------- Observables which are listen for the current state and send requests to the system
-
+    /** Disposes the queue and definitely closes the `BluetoothGatt` instance when a disconnection occurs */
     init {
         callback.livingConnection()
             .observeOn(AndroidSchedulers.mainThread())
@@ -43,7 +42,7 @@ class RxBluetoothGattImpl(
             })
     }
 
-    // -------------------- Connection
+    // -------------------- Connection tools
 
     private inline fun <T> Observable<T>.handleCallbackDisconnection(crossinline exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this
         .onErrorResumeNext(Function {
@@ -554,7 +553,8 @@ class RxBluetoothGattImpl(
             else Maybe.just(wroteDescriptor)
         }
 
-    override fun disconnect(): Completable = livingConnection().ignoreElements().doOnSubscribe { callback.disconnect() }
+    /** The connection state is not handled by the current class, this job is done by [callback] so I forward the information to [callback] */
+    override fun disconnect(): Completable = livingConnection().ignoreElements().doOnSubscribe { callback.disconnection() }
 
     companion object {
         private const val TAG = "RxBluetoothGattImpl"
