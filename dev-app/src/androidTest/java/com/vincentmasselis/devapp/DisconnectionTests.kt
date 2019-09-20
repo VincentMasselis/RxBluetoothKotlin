@@ -40,6 +40,7 @@ class DisconnectionTests {
                 gatt.whenConnectionIsReady().map { gatt }
             }
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
             .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
@@ -67,6 +68,7 @@ class DisconnectionTests {
                 gatt.whenConnectionIsReady().map { gatt }
             }
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
             .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
@@ -122,6 +124,7 @@ class DisconnectionTests {
                 gatt.whenConnectionIsReady().map { gatt }
             }
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services") }.map { gatt } }
             .flatMapCompletable { it.listenDisconnection().doOnSubscribe { Logger.v(TAG, "Listening for disconnection") } }
             .timeout(20, TimeUnit.SECONDS)
@@ -147,6 +150,7 @@ class DisconnectionTests {
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().doOnSubscribe { Logger.v(TAG, "Subscribing to fetch services"); gatt.disconnect().subscribe() }.map { gatt } }
             .timeout(20, TimeUnit.SECONDS)
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
