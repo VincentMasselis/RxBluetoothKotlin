@@ -554,7 +554,7 @@ class RxBluetoothGattImpl(
             else Maybe.just(wroteDescriptor)
         }
 
-    override fun disconnect(): Completable = livingConnection().ignoreElements().doOnSubscribe { callback.disconnect() }.subscribeOn(AndroidSchedulers.mainThread())
+    override fun disconnect(): Completable = livingConnection().ignoreElements().doOnSubscribe { callback.disconnect() }
 
     companion object {
         private const val TAG = "RxBluetoothGattImpl"
