@@ -76,12 +76,12 @@ interface RxBluetoothGatt {
          *
          * onComplete is never called
          *
-         * onError with [BluetoothIsTurnedOff] or [StateDisconnected] when a unexpected disconnection occurs, if the connection were expected, [StateDisconnected.status] is null.
+         * onError with [BluetoothIsTurnedOff] or [StateDisconnected] when a unexpected disconnection occurs, [StateDisconnected.status] is null if the connection were expected.
          */
         @CheckReturnValue
         fun livingConnection(): Observable<Unit>
 
-        /** Puts the [Callback] into a disconnected state just like [onConnectionState] would do if the disconnection was unexpected */
+        /** Puts the [Callback] into a disconnected state like [onConnectionState] would do if the disconnection was reported by the system */
         fun disconnection()
     }
 
