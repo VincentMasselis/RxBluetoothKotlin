@@ -8,11 +8,9 @@ import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
 import io.reactivex.*
-import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.functions.Function
 import io.reactivex.subjects.UnicastSubject
-import java.util.*
 import java.util.concurrent.TimeUnit
 
 /**
@@ -264,12 +262,17 @@ class RxBluetoothGattImpl(
         }
         .enqueue { device, status -> ChangeNotificationDeviceDisconnected(device, status, characteristic, byteArray, checkIfAlreadyChanged) }
         .flatMap {
-            val notificationDescriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
-            if (notificationDescriptor == null)
-                Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
-            else
-                write(notificationDescriptor, byteArray, checkIfAlreadyChanged)
+            val descriptor = characteristic.getDescriptor(GattConsts.NOTIFICATION_DESCRIPTOR_UUID)
+            when {
+                descriptor == null ->
+                    Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
+
+                checkIfAlreadyChanged && byteArray.contentEquals(descriptor.value) ->
+                    Maybe.just(characteristic)
+
+                else -> write(descriptor, byteArray)
                     .map { characteristic }
+            }
         }
 
     override fun listenChanges(
@@ -316,13 +319,8 @@ class RxBluetoothGattImpl(
             else Maybe.just(readDescriptor.value)
         }
 
-    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean): Maybe<BluetoothGattDescriptor> = Single
+    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray): Maybe<BluetoothGattDescriptor> = Single
         .create<Pair<BluetoothGattDescriptor, Int>> { downStream ->
-            if (checkIfAlreadyWritten && Arrays.equals(descriptor.value, value)) {
-                downStream.onSuccess(descriptor to GATT_SUCCESS)
-                return@create
-            }
-
             downStream.setDisposable(callback.onDescriptorWrite.firstOrError().subscribe({ downStream.onSuccess(it) }, { downStream.tryOnError(it) }))
             logger?.v(TAG, "writeDescriptor ${descriptor.uuid} with value ${value.toHexString()}")
             descriptor.value = value

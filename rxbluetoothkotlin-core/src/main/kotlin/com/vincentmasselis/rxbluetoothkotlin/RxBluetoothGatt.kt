@@ -325,7 +325,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onDescriptorWrite
      */
     @CheckReturnValue
-    fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean = false): Maybe<BluetoothGattDescriptor>
+    fun write(descriptor: BluetoothGattDescriptor, value: ByteArray): Maybe<BluetoothGattDescriptor>
 
     /**
      * Disconnects the device. If the device is already disconnected, the last known error is fired again. Fires the same errors than [livingConnection] and also completes if the

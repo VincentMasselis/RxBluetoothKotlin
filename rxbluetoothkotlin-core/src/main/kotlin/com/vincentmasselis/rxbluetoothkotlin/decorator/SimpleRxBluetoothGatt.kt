@@ -34,8 +34,7 @@ abstract class SimpleRxBluetoothGatt(private val concrete: RxBluetoothGatt) : Rx
     ): Flowable<ByteArray> = concrete.listenChanges(characteristic, composer)
 
     override fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> = concrete.read(descriptor)
-    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray, checkIfAlreadyWritten: Boolean): Maybe<BluetoothGattDescriptor> =
-        concrete.write(descriptor, value, checkIfAlreadyWritten)
+    override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray): Maybe<BluetoothGattDescriptor> = concrete.write(descriptor, value)
 
     override fun disconnect() = concrete.disconnect()
 }
