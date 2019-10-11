@@ -36,7 +36,6 @@ interface RxBluetoothGatt {
         /** Original callback instance used by the system */
         val source: BluetoothGattCallback
 
-        /** Unlike the other Observables this one MUST emit a subscription the last known value */
         val onConnectionState: Observable<ConnectionState>
 
         val onRemoteRssiRead: Observable<RSSI>

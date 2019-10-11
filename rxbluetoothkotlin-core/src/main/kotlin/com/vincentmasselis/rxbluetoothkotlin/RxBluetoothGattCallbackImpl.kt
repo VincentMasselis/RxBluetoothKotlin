@@ -21,7 +21,7 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
 
     // ---------------- Converts methods from `BluetoothGattCallback` to `RxBluetoothGatt.Callback`'s observables.
 
-    override val onConnectionState = BehaviorSubject.create<ConnectionState>()
+    override val onConnectionState = PublishSubject.create<ConnectionState>()
     override val onRemoteRssiRead = PublishSubject.create<RSSI>()
     override val onServicesDiscovered = PublishSubject.create<Status>()
     override val onMtuChanged = PublishSubject.create<MTU>()
@@ -122,7 +122,7 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
                 ConnectionEvent.Initializing -> {
                     when {
                         bluetoothState == BluetoothAdapter.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Active)
-                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
+                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible case was fired")
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(null))
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(status))
                         status != BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(status)) // If STATE_CONNECTING or STATE_DISCONNECTING are emitting values != from GATT_SUCCESS, I fire them
@@ -132,8 +132,8 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
                 }
                 ConnectionEvent.Active -> {
                     when {
-                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
+                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible case was fired")
+                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible case was fired")
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(null))
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(status))
                         status != BluetoothGatt.GATT_SUCCESS -> stateSubject.onNext(ConnectionEvent.Lost(status)) // If STATE_CONNECTING or STATE_DISCONNECTING are emitting values != from GATT_SUCCESS, I fire them
@@ -143,8 +143,8 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
                 }
                 is ConnectionEvent.Lost -> {
                     when {
-                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
-                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible was case fired")
+                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible case was fired")
+                        bluetoothState == BluetoothAdapter.STATE_CONNECTED && status != BluetoothGatt.GATT_SUCCESS -> throw IllegalStateException("An impossible case was fired")
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status == BluetoothGatt.GATT_SUCCESS -> { // Nothing to do, the state is already set to Lost
                         }
                         bluetoothState == BluetoothAdapter.STATE_DISCONNECTED && status != BluetoothGatt.GATT_SUCCESS -> { // Nothing to do, the state is already set to Lost
