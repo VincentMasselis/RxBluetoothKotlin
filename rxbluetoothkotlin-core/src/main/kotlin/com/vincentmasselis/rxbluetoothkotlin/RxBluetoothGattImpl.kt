@@ -267,7 +267,7 @@ class RxBluetoothGattImpl(
                 descriptor == null ->
                     Maybe.error(DescriptorNotFound(source.device, characteristic.uuid, GattConsts.NOTIFICATION_DESCRIPTOR_UUID))
 
-                checkIfAlreadyChanged && byteArray.contentEquals(descriptor.value) ->
+                checkIfAlreadyChanged && descriptor.value?.contentEquals(byteArray) ?: false ->
                     Maybe.just(characteristic)
 
                 else -> write(descriptor, byteArray)
