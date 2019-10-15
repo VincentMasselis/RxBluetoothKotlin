@@ -18,10 +18,11 @@ private const val TAG = "BluetoothDevice+rx"
  * listen the [io.reactivex.MaybeObserver.onSuccess] event from the [Maybe] returned by
  * [whenConnectionIsReady] method.
  *
- * @param autoConnect similar to "autoConnect" from the [BluetoothDevice.connectGatt] method. Use it wisely.
  * @param logger Set a [logger] to log every event which occurs from the BLE API (connections, writes, notifications, MTU, missing permissions, etc...).
  * @param rxGattBuilder Defaults uses a [RxBluetoothGattImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
  * [RxBluetoothGatt] and the system.
+ * @param connectGattWrapper Default calls [BluetoothDevice.connectGatt]. If you want to use an other variant of [BluetoothDevice.connectGatt] regarding to your requirements,
+ * replace the default implementation by your own.
  * @param rxCallbackBuilder Defaults uses a [RxBluetoothGattCallbackImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
  * [RxBluetoothGatt.Callback] and the system.
  *
@@ -35,10 +36,17 @@ private const val TAG = "BluetoothDevice+rx"
  */
 @Suppress("UNCHECKED_CAST")
 fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
-    autoConnect: Boolean = false,
     logger: Logger? = null,
-    rxCallbackBuilder: (() -> T) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T },
-    rxGattBuilder: ((BluetoothGatt, T) -> E) = { gatt, callbacks -> RxBluetoothGattImpl(logger, gatt, callbacks) as E }
+    rxCallbackBuilder: () -> T = {
+        RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T
+    },
+    connectGattWrapper: (Context, BluetoothGattCallback) -> BluetoothGatt? = { context, callback ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        else connectGatt(context, false, callback)
+    },
+    rxGattBuilder: (BluetoothGatt, T) -> E = { gatt, callbacks ->
+        RxBluetoothGattImpl(logger, gatt, callbacks) as E
+    }
 ): Single<E> = Single
     .fromCallable {
 
@@ -48,7 +56,10 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
         }
 
         val btState =
-            if ((ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled) BluetoothAdapter.STATE_ON else BluetoothAdapter.STATE_OFF
+            if ((ContextHolder.context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                BluetoothAdapter.STATE_ON
+            else
+                BluetoothAdapter.STATE_OFF
 
         if (btState == BluetoothAdapter.STATE_OFF) {
             logger?.v(TAG, "Bluetooth is off")
@@ -57,9 +68,7 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
 
         val callbacks = rxCallbackBuilder()
 
-        logger?.v(TAG, "connectGatt with autoConnect $autoConnect")
-        val gatt = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(ContextHolder.context, autoConnect, callbacks.source, BluetoothDevice.TRANSPORT_LE)
-        else connectGatt(ContextHolder.context, autoConnect, callbacks.source)
+        val gatt = connectGattWrapper(ContextHolder.context, callbacks.source)
 
         if (gatt == null) {
             logger?.v(TAG, "connectGatt method returned null")
@@ -72,8 +81,21 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
 
 /** @see connectTypedRxGatt */
 fun BluetoothDevice.connectRxGatt(
-    autoConnect: Boolean = false,
     logger: Logger? = null,
-    rxCallbackBuilder: (() -> RxBluetoothGatt.Callback) = { RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } },
-    rxGattBuilder: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks -> RxBluetoothGattImpl(logger, gatt, callbacks) }
-) = connectTypedRxGatt(autoConnect, logger, rxCallbackBuilder, rxGattBuilder)
+    rxCallbackBuilder: (() -> RxBluetoothGatt.Callback) = {
+        RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete }
+    },
+    connectGattWrapper: (Context, BluetoothGattCallback) -> BluetoothGatt? = { context, callback ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        else connectGatt(context, false, callback)
+    },
+    rxGattBuilder: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks ->
+        RxBluetoothGattImpl(logger, gatt, callbacks)
+    }
+) =
+    connectTypedRxGatt(
+        logger,
+        rxCallbackBuilder,
+        connectGattWrapper,
+        rxGattBuilder
+    )
