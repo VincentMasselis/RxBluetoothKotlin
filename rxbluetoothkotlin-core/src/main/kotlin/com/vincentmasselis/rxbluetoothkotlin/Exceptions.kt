@@ -272,10 +272,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val service: BluetoothGattService?,
         val characteristic: BluetoothGattCharacteristic,
         val properties: Int,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeCharacteristicReading(service=$service, characteristic=$characteristic, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
@@ -290,10 +290,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val characteristic: BluetoothGattCharacteristic,
         val value: ByteArray,
         val properties: Int,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeCharacteristicWrite(service=$service, characteristic=$characteristic, value=${value.contentToString()}, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
@@ -306,8 +306,8 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         device: BluetoothDevice,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
@@ -322,10 +322,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val service: BluetoothGattService?,
         val characteristic: BluetoothGattCharacteristic?,
         val descriptor: BluetoothGattDescriptor,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeDescriptorReading(service=$service, characteristic=$characteristic, descriptor=$descriptor, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
@@ -340,10 +340,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val characteristic: BluetoothGattCharacteristic?,
         val descriptor: BluetoothGattDescriptor,
         val value: ByteArray,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeDescriptorWrite(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${value.contentToString()}, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
