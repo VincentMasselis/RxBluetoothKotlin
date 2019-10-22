@@ -60,8 +60,8 @@ rxBluetoothGatt.disconnect().subscribe()
 
 ## Requirements
 * Min target API 18
-* A manifest with `<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />` and `<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />`
-* The user permission access coarse Location `requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_CODE_COARSE_LOCATION)`
+* A manifest with `<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />` and `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />`
+* The user permission to access to the fine Location `requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)`
 * A turned on bluetooth chip `(context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled`
 
 ## Logging

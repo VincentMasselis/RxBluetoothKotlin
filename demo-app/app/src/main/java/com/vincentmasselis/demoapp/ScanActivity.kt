@@ -85,7 +85,7 @@ class ScanActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
-            PERMISSION_CODE_COARSE_LOCATION -> if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startScan()
+            PERMISSION_CODE_FINE_LOCATION -> if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startScan()
         }
     }
 
@@ -103,7 +103,7 @@ class ScanActivity : AppCompatActivity() {
                 when (it) {
                     is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this).setMessage("The current device doesn't support bluetooth le").show()
                     is NeedLocationPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), PERMISSION_CODE_COARSE_LOCATION)
+                        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)
                     is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
                     is LocationServiceDisabled -> startActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQUEST_CODE_ENABLE_LOCATION)
                     else -> AlertDialog.Builder(this).setMessage("Error occurred: $it").show()
@@ -119,7 +119,7 @@ class ScanActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val PERMISSION_CODE_COARSE_LOCATION = 1
+        private const val PERMISSION_CODE_FINE_LOCATION = 1
         private const val REQUEST_CODE_ENABLE_LOCATION = 2
     }
 }

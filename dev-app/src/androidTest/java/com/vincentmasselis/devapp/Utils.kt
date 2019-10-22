@@ -28,4 +28,4 @@ fun bluetoothPreconditions(context: Context) {
 
 val BATTERY_CHARACTERISTIC: UUID = UUID.fromString("00002A19-0000-1000-8000-00805F9B34FB")
 
-const val DEVICE_MAC = "E9:98:86:03:D5:9F"
+const val DEVICE_MAC = "EE:72:0C:43:49:B6"

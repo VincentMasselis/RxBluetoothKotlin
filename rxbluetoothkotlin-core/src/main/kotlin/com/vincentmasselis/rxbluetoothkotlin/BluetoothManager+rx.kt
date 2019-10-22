@@ -1,6 +1,5 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
-import android.Manifest
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -11,8 +10,8 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import androidx.core.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
+import com.vincentmasselis.rxbluetoothkotlin.internal.hasPermissions
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -60,8 +59,7 @@ fun BluetoothManager.rxScan(
                     logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
                     return@defer Completable.error(DeviceDoesNotSupportBluetooth())
                 }
-                ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                        ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED -> {
+                hasPermissions().not() -> {
                     logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
                     return@defer Completable.error(NeedLocationPermission())
                 }

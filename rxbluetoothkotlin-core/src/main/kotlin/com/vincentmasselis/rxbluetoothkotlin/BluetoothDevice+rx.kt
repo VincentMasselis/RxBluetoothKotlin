@@ -1,13 +1,11 @@
 package com.vincentmasselis.rxbluetoothkotlin
 
-import android.Manifest
 import android.bluetooth.*
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContextCompat
 import com.vincentmasselis.rxbluetoothkotlin.decorator.CallbackLogger
 import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
+import com.vincentmasselis.rxbluetoothkotlin.internal.hasPermissions
 import io.reactivex.Maybe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -44,8 +42,8 @@ fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectT
 ): Single<E> = Single
     .fromCallable {
 
-        if (ContextCompat.checkSelfPermission(ContextHolder.context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            logger?.v(TAG, "BLE require ACCESS_COARSE_LOCATION permission")
+        if (hasPermissions().not()) {
+            logger?.v(TAG, "BLE require ACCESS_FINE_LOCATION permission")
             throw NeedLocationPermission()
         }
 

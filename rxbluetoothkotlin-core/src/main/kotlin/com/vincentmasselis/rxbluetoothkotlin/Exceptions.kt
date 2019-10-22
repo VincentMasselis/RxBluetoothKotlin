@@ -31,8 +31,7 @@ class DeviceDoesNotSupportBluetooth : Throwable() {
 
 /**
  * Error fired if the location permission is require for the current app. You have to request for
- * the missing permission [android.Manifest.permission.ACCESS_COARSE_LOCATION] or
- * [android.Manifest.permission.ACCESS_FINE_LOCATION]
+ * the missing permission [android.Manifest.permission.ACCESS_FINE_LOCATION].
  */
 class NeedLocationPermission : Throwable() {
     override fun toString(): String = "NeedLocationPermission()"
