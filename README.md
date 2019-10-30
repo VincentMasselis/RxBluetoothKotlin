@@ -74,7 +74,7 @@ rxBluetoothGatt.disconnect().subscribe()
 When scanning with `rxScan()` or connecting with `connectRxGatt()`, you can set the `logger` parameter. By setting it, RxBluetoothKotlin will produce a log for every bluetooth input, output, starting scan, error thrown, etc.. I recommend to set it for debugging purproses and/or if you're not familiar with the Android BLE API. It could helps you a lot to understand what's going on between your app and the Bluetooth Low Energy device.
 
 ## Error management
-Interact with Bluetooth Low Energy devices on Android is *hard*. The BLE specs uses unfamiliars concepts, the BLE API from Android could fails at any moment and some exceptions are silent. Because of this, a basic method like `write(BluetoothGattCharacteristic)` could fails for 5 differents reasons. It becomes harder if you are chaining this call with other calls, this sum up to a thrown exception when it's impossible to known which call fails and why.
+Interact with Bluetooth Low Energy devices on Android is **hard**. The BLE specs uses unfamiliars concepts, the BLE API from Android could fails at any moment and some exceptions are silent. Because of this, a basic method like `write(BluetoothGattCharacteristic)` could fails for 5 differents reasons. It becomes harder if you are chaining this call with other calls, this sum up to a thrown exception when it's impossible to known which call fails and why.
 
 For this reason, every public method from this library is documented with every exceptions which could be fired and most of the exception are unique. For example: `write(BluetoothGattCharacteristic)` could fire:
 * Unique `CharacteristicWriteDeviceDisconnected` if the device disconnects while writing
