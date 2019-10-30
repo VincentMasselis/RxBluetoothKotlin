@@ -19,7 +19,7 @@ If you're targeting Android API 28 and less, the last supported release is 1.2.1
 ## TL/DR
 
 ```groovy
-implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.2.1'
+implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.3.0'
 // Add this to use the scanner
 implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
 // RxBluetoothKotlin doesn't provides the RxJava dependecy, you have to add it yourself:
