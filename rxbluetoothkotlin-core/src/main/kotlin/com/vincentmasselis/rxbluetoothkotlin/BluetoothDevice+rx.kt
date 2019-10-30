@@ -20,11 +20,11 @@ private const val TAG = "BluetoothDevice+rx"
  *
  * @param logger Set a [logger] to log every event which occurs from the BLE API (connections, writes, notifications, MTU, missing permissions, etc...).
  * @param rxGattBuilder Defaults uses a [RxBluetoothGattImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
- * [RxBluetoothGatt] and the system.
+ * [RxBluetoothGatt] implementation and the system.
  * @param connectGattWrapper Default calls [BluetoothDevice.connectGatt]. If you want to use an other variant of [BluetoothDevice.connectGatt] regarding to your requirements,
  * replace the default implementation by your own.
- * @param rxCallbackBuilder Defaults uses a [RxBluetoothGattCallbackImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the default
- * [RxBluetoothGatt.Callback] and the system.
+ * @param rxCallbackBuilder Defaults uses a [RxBluetoothGattCallbackImpl] instance but you can fill you own. It can be useful if you want to add some business logic between the
+ * default [RxBluetoothGatt.Callback] implementation and the system.
  *
  * @return
  * onSuccess with a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
