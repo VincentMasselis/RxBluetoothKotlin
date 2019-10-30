@@ -14,7 +14,7 @@ Looking for BLE with Coroutines instead of RxJava ? Take a look at the [LouisCAD
 Starting from Android API 29, the coarse location permission is not required anymore, instead of this, you have to use the FINE permission location to scan over the bluetooth low energy. Before upgrading `targetSdkVersion` to 29 in your app, check your `requestPermission` calls according to this new permission.
 
 Because of this change, RxBluetoothKotlin was updated to fire the `NeedLocationPermission` exception at the right moment when the fine location permission is missing starting from the release `1.2.2`.
-If you're targeting Android API 28 and less, the last supported release is 1.2.1, if you're targeting API 29 or more, you should use the last version or RxBluetoothKotlin.
+If you're targeting Android API 28 and less, the last supported release is 1.2.1, if you're targeting API 29 or more, you should use the last version of RxBluetoothKotlin.
 
 ## TL/DR
 
