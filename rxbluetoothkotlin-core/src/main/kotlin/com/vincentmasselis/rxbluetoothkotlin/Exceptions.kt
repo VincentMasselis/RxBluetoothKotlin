@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package com.vincentmasselis.rxbluetoothkotlin
 
 import android.bluetooth.BluetoothDevice
@@ -87,9 +89,7 @@ class LookingForCharacteristicButServicesNotDiscovered(val device: BluetoothDevi
 }
 
 /**
- * Fired when calling [android.bluetooth.BluetoothGatt.rxEnableNotification] or
- * [android.bluetooth.BluetoothGatt.rxDisableNotification] and the descriptor for notifications is
- * not found.
+ * Fired when calling [RxBluetoothGatt.enableNotification] or [RxBluetoothGatt.disableNotification] if the descriptor for notifications is not found.
  */
 class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UUID, val descriptorUUID: UUID) : Throwable() {
     override fun toString(): String =
@@ -99,23 +99,19 @@ class DescriptorNotFound(val device: BluetoothDevice, val characteristicUUID: UU
 // ------------------ Bluetooth exceptions for I/O only
 
 /**
- * Top error corresponding to a device disconnection. Each I/O method like
- * [android.bluetooth.BluetoothGatt.write] have an specific implementation of
- * [DeviceDisconnected], in this case it's [CharacteristicWriteDeviceDisconnected].
+ * Top error corresponding to a device disconnection. Each I/O method like [RxBluetoothGatt.write] have an specific implementation of [DeviceDisconnected], in this case it's
+ * [CharacteristicWriteDeviceDisconnected].
  *
  * The [status] field is filled with an [Int] provided by the Android framework. Android sources are
  * undocumented but [status] seems to refers to theses consts :
  * [https://android.googlesource.com/platform/external/bluetooth/bluedroid/+/android-5.1.0_r1/stack/include/gatt_api.h]
- *
- * /!\ IMPORTANT : It can returns a -1 [status] which is not documented in the previous URL. This status
- * is used when the connection was killed by a [BluetoothIsTurnedOff] exception.
  */
 sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : Throwable() {
     override fun toString(): String = "DeviceDisconnected(device=$device, status=$status)"
 
     /**
      * Fired when device disconnect. Unlike the other sealed classes, this [Throwable] doesn't
-     * provides the bluetooth operation which has failed.
+     * provides the bluetooth operation which has failed and caused a disconnection.
      */
     class SimpleDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "SimpleDeviceDisconnected() ${super.toString()}"
@@ -158,13 +154,6 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
     }
 
     /**
-     * Exception fired when the current connectLegacy connection is lost
-     */
-    class GattDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
-        override fun toString(): String = "GattDeviceDisconnected() ${super.toString()}"
-    }
-
-    /**
      * Fired if the device disconnects while changing the notification state (enable or disable)
      */
     class ChangeNotificationDeviceDisconnected(
@@ -174,7 +163,7 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
         val checkIfAlreadyChanged: Boolean
     ) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String =
-            "ChangeNotificationDeviceDisconnected(characteristic=$characteristic, notificationValue=${Arrays.toString(notificationValue)}, checkIfAlreadyChanged=$checkIfAlreadyChanged) ${super.toString()}"
+            "ChangeNotificationDeviceDisconnected(characteristic=$characteristic, notificationValue=${notificationValue.contentToString()}, checkIfAlreadyChanged=$checkIfAlreadyChanged) ${super.toString()}"
     }
 
     /**
@@ -197,7 +186,7 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
         val value: ByteArray
     ) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String =
-            "CharacteristicWriteDeviceDisconnected(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
+            "CharacteristicWriteDeviceDisconnected(service=$service, characteristic=$characteristic, value=${value.contentToString()}) ${super.toString()}"
     }
 
     /**
@@ -239,14 +228,13 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
         val value: ByteArray
     ) : DeviceDisconnected(device, status) {
         override fun toString(): String =
-            "DescriptorWriteDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
+            "DescriptorWriteDeviceDisconnected(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${value.contentToString()}) ${super.toString()}"
     }
 }
 
 /**
- * Top error corresponding to an error write preparing I/O. Each I/O method like
- * [android.bluetooth.BluetoothGatt.write] have an specific implementation of
- * [CannotInitialize], in this case it's [CannotInitializeCharacteristicWrite].
+ * Top error corresponding to an error write preparing I/O. Each I/O method like [RxBluetoothGatt.write] have an specific implementation of [CannotInitialize], in this case it's
+ * [CannotInitializeCharacteristicWrite].
  */
 sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
     override fun toString(): String = "CannotInitialize(device=$device)"
@@ -281,10 +269,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val service: BluetoothGattService?,
         val characteristic: BluetoothGattCharacteristic,
         val properties: Int,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeCharacteristicReading(service=$service, characteristic=$characteristic, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
@@ -299,13 +287,13 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val characteristic: BluetoothGattCharacteristic,
         val value: ByteArray,
         val properties: Int,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
-            "CannotInitializeCharacteristicWrite(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeCharacteristicWrite(service=$service, characteristic=$characteristic, value=${value.contentToString()}, properties=$properties, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 
     /**
@@ -315,8 +303,8 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         device: BluetoothDevice,
         val service: BluetoothGattService,
         val characteristic: BluetoothGattCharacteristic,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
@@ -331,10 +319,10 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val service: BluetoothGattService?,
         val characteristic: BluetoothGattCharacteristic?,
         val descriptor: BluetoothGattDescriptor,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
             "CannotInitializeDescriptorReading(service=$service, characteristic=$characteristic, descriptor=$descriptor, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
@@ -349,13 +337,13 @@ sealed class CannotInitialize(val device: BluetoothDevice) : Throwable() {
         val characteristic: BluetoothGattCharacteristic?,
         val descriptor: BluetoothGattDescriptor,
         val value: ByteArray,
-        val internalService: Any,
-        val clientIf: Any,
+        val internalService: Any?,
+        val clientIf: Any?,
         val foundDevice: Any?,
-        val isDeviceBusy: Any
+        val isDeviceBusy: Any?
     ) : CannotInitialize(device) {
         override fun toString(): String =
-            "CannotInitializeDescriptorWrite(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
+            "CannotInitializeDescriptorWrite(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${value.contentToString()}, internalService=$internalService, clientIf=$clientIf, foundDevice=$foundDevice, isDeviceBusy=$isDeviceBusy) ${super.toString()}"
     }
 }
 
@@ -423,7 +411,7 @@ sealed class IOFailed(val status: Int, val device: BluetoothDevice) : Throwable(
         val value: ByteArray
     ) : IOFailed(status, device) {
         override fun toString(): String =
-            "CharacteristicWriteFailed(service=$service, characteristic=$characteristic, value=${Arrays.toString(value)}) ${super.toString()}"
+            "CharacteristicWriteFailed(service=$service, characteristic=$characteristic, value=${value.contentToString()}) ${super.toString()}"
     }
 
     /**
@@ -452,6 +440,6 @@ sealed class IOFailed(val status: Int, val device: BluetoothDevice) : Throwable(
         val value: ByteArray
     ) : IOFailed(status, device) {
         override fun toString(): String =
-            "DescriptorWriteFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${Arrays.toString(value)}) ${super.toString()}"
+            "DescriptorWriteFailed(service=$service, characteristic=$characteristic, descriptor=$descriptor, value=${value.contentToString()}) ${super.toString()}"
     }
 }

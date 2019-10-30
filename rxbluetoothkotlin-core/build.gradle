@@ -6,12 +6,12 @@ apply plugin: 'maven-publish'
 
 
 android {
-    compileSdkVersion 28
+    compileSdkVersion 29
     buildToolsVersion "28.0.3"
 
     defaultConfig {
         minSdkVersion 18
-        targetSdkVersion 28
+        targetSdkVersion 29
         versionCode versionCode
         versionName libVersion
     }
@@ -33,7 +33,7 @@ dokka {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.appcompat:appcompat:1.1.0'
-    implementation "io.reactivex.rxjava2:rxjava:2.2.11"
+    implementation "io.reactivex.rxjava2:rxjava:2.2.13"
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
     implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
 }

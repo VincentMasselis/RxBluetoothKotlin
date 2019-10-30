@@ -9,9 +9,9 @@ import android.bluetooth.BluetoothGattService
  */
 internal fun BluetoothGatt.internalService() =
     try {
-        this.javaClass.getDeclaredField("mService")
-            .apply { this.isAccessible = true }
-            .get(this)
+        this.javaClass.declaredFields.firstOrNull { it.name == "mService" }
+            ?.apply { this.isAccessible = true }
+            ?.get(this)
     } catch (e: Throwable) {
         e
     }
@@ -22,9 +22,9 @@ internal fun BluetoothGatt.internalService() =
  */
 internal fun BluetoothGatt.clientIf() =
     try {
-        this.javaClass.getDeclaredField("mClientIf")
-            .apply { this.isAccessible = true }
-            .get(this)
+        this.javaClass.declaredFields.firstOrNull { it.name == "mClientIf" }
+            ?.apply { this.isAccessible = true }
+            ?.get(this)
     } catch (e: Throwable) {
         e
     }
@@ -35,9 +35,9 @@ internal fun BluetoothGatt.clientIf() =
  */
 internal fun BluetoothGattService.device() =
     try {
-        this.javaClass.getDeclaredMethod("getDevice")
-            .apply { this.isAccessible = true }
-            .invoke(this)
+        this.javaClass.declaredMethods.firstOrNull { it.name == "getDevice" }
+            ?.apply { this.isAccessible = true }
+            ?.invoke(this)
     } catch (e: Throwable) {
         e
     }
@@ -49,9 +49,9 @@ internal fun BluetoothGattService.device() =
  */
 internal fun BluetoothGatt.isDeviceBusy() =
     try {
-        this.javaClass.getDeclaredField("mDeviceBusy")
-            .apply { this.isAccessible = true }
-            .get(this)
+        this.javaClass.declaredFields.firstOrNull { it.name == "mDeviceBusy" }
+            ?.apply { this.isAccessible = true }
+            ?.get(this)
     } catch (e: Throwable) {
         e
     }

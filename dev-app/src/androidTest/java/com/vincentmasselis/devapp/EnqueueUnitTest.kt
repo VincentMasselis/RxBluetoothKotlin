@@ -41,6 +41,7 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
+            .delay(600, TimeUnit.MILLISECONDS)
             .doOnSuccess { activity.setMessage("Discovering services") }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
             .doOnSuccess { activity.setMessage("Running tests") }
@@ -58,6 +59,7 @@ class EnqueueUnitTest {
             }
             .doOnComplete { throw IllegalStateException("Should not complete here") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .timeout(20L, TimeUnit.SECONDS)
             .test()
             .await()
             .assertValueCount(1)
@@ -83,9 +85,10 @@ class EnqueueUnitTest {
             .doOnSuccess { activity.setMessage("Connecting") }
             .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .delay(7, TimeUnit.SECONDS) // Small delay to force the sensor switch into 500ms connection interval
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
+            .delay(7, TimeUnit.SECONDS) // Small delay to force the sensor switch into 500ms connection interval
             .doOnSuccess { activity.setMessage("Running tests") }
             .flatMap { gatt ->
                 Maybes
@@ -104,6 +107,7 @@ class EnqueueUnitTest {
             }
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
+            .timeout(20L, TimeUnit.SECONDS)
             .test()
             .await()
             .assertComplete()
@@ -127,6 +131,7 @@ class EnqueueUnitTest {
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { it.disconnect().subscribe() }
             .doOnSuccess { activity.setMessage("Discovering services") }
+            .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
             .doOnSuccess { throw IllegalStateException("Should not succeed here, It should complete with because of the gatt.disconnect() call") }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
@@ -194,7 +199,7 @@ class EnqueueUnitTest {
                     .doOnSubscribe { Logger.e(TAG, "I/O Subscription") }
                     .doOnDispose { Logger.e(TAG, "I/O Dispose") }
                     .doOnEvent { t1, t2 -> Logger.e(TAG, "I/O t1 $t1, t2 $t2") }
-                    .doOnSubscribe { activity.postForUI(20L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } }
+                    .doOnSubscribe { activity.postForUI(10L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } }
             }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .timeout(20L, TimeUnit.SECONDS)

@@ -93,7 +93,7 @@ If you're not familiar with the Bluetooth Low Energy API or if you want to try t
 ## Decorator patter
 ⚠ Before reading this part, you must know how a [Decorator design pattern](https://en.wikipedia.org/wiki/Decorator_pattern) works and how to make a new one.
 
-On Android, communicating with a Bluetooth device requires an instance of `BluetoothGatt` and an instance of `BluetoothGattCallback`. RxBluetoothKotlin wraps both of theses types into `RxBluetoothGatt` and `RxBluetoothGatt.Callback` types to add some reactive touch to the system objects. Because `RxBluetoothGatt` is an interface and `BluetoothGattCallback` an abstract class, calling `connectRxGatt` will return a default implentation for both of them. You are free to wrap the returned `RxBluetoothGatt` implementation and update the original object by adding you own behavior, you only have to follow the Decorator rules.
+On Android, communicating with a Bluetooth device requires an instance of `BluetoothGatt` and an instance of `BluetoothGattCallback`. RxBluetoothKotlin wraps both of theses types into `RxBluetoothGatt` and `RxBluetoothGatt.Callback` types to add some reactive touch to the system objects. Both `RxBluetoothGatt` and `RxBluetoothGatt.Callback` are interfaces, calling `connectRxGatt` will return a default implementation for both of them but you are free to wrap the returned implementation by your own implementation to add you own behavior, you only have to follow the Decorator rules.
 
 ### Decorate RxBluetoothGatt
 The following diagram will show you which classes are used to create the decorator pattern:
@@ -114,7 +114,7 @@ On this website `https://yuml.me/diagram/scruffy/class/draw`
 
 As you can see, to create a decorator, you only have to subclass `SimpleRxBluetoothGatt`. If you want to decorate `RxBluetoothGatt.Callback` just subclass `SimpleRxBluetoothGattCallback` like you do with `SimpleRxBluetoothGatt` from the previous example.
 
-When your decorators are written you can send them to RxBluetoothKotlin by adding `callbackConstructor` and `rxGattConstructor` parameters when calling `connectRxGatt`. Defaults implentation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
+When your decorators are written you can send them to RxBluetoothKotlin by setting the `rxGattBuilder` and `rxCallbackBuilder` parameters when calling `connectRxGatt`. Defaults implementation of RxBluetoothKotlin uses `RxBluetoothGattImpl` and `RxBluetoothGattCallbackImpl`, by using you own decorator you can change the way RxBluetoothKotlin is communicating with the Android SDK in order to match your own requirements.
 
 ## Links
 Report an issue by using [github](https://github.com/VincentMasselis/RxBluetoothKotlin/issues)
@@ -125,10 +125,6 @@ Discover our [Equisense sensors](https://equisense.com)
 
 //TODO 
 
-- More test
-
 - Getting started
-
-- Example app
 
 - Licence

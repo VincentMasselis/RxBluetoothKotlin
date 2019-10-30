@@ -132,27 +132,32 @@ fun BluetoothManager.rxScan(
                     Single
                         .fromCallable {
                             //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
-                            val realCallback = scanner.javaClass.superclass?.getDeclaredField("mCallbacks")
+                            val realCallback = scanner.javaClass.superclass
+                                ?.declaredFields
+                                ?.firstOrNull { it.name == "mCallbacks" }
                                 ?.apply { isAccessible = true }
                                 ?.get(scanner)
                                 ?.let { it as? Map<*, *> }
                                 ?.get(callback)
                             val systemScanner = adapter.bluetoothLeScanner
-                            systemScanner.javaClass.getDeclaredField("mLeScanClients")
-                                .apply { isAccessible = true }
-                                .get(systemScanner)
-                                .let { it as? Map<*, *> }
+                            systemScanner.javaClass
+                                .declaredFields
+                                .firstOrNull { it.name == "mLeScanClients" }
+                                ?.apply { isAccessible = true }
+                                ?.get(systemScanner)
+                                ?.let { it as? Map<*, *> }
                                 ?.get(realCallback)
                                 ?.let { bluetoothLeScanner ->
-                                    bluetoothLeScanner.javaClass.getDeclaredField("mScannerId")
-                                        .apply { isAccessible = true }
-                                        .get(bluetoothLeScanner)
+                                    bluetoothLeScanner.javaClass
+                                        .declaredFields
+                                        .firstOrNull { it.name == "mScannerId" }
+                                        ?.apply { isAccessible = true }
+                                        ?.get(bluetoothLeScanner)
                                 }
                                 ?.run { this as? Int }
                                 ?.let { mScannerId ->
                                     return@fromCallable mScannerId
                                 }
-
                         }
                         .subscribeOn(Schedulers.computation())
                         .subscribe({ mScannerId ->
@@ -162,7 +167,7 @@ fun BluetoothManager.rxScan(
                         }, {
                             logger?.w(
                                 TAG,
-                                "rxScan() is unable to compute system's mScannerId for this scan, it has no effect on the execution of rxScan() but it can leads to bugs from the Android SDK API 27. More information here : https://issuetracker.google.com/issues/71736547",
+                                "rxScan() is unable to compute system's mScannerId for this scan, it has no effect on the execution of rxScan() but it can leads to bugs in SDK 27. More information here : https://issuetracker.google.com/issues/71736547",
                                 it
                             )
                         })

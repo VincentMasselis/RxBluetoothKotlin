@@ -1,86 +1,122 @@
 package com.vincentmasselis.rxbluetoothkotlin.decorator
 
-import android.bluetooth.BluetoothGatt
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
-import android.os.Build
-import androidx.annotation.RequiresApi
-import com.vincentmasselis.rxbluetoothkotlin.Logger
-import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt
+import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
+import io.reactivex.Flowable
+import io.reactivex.Observable
+import io.reactivex.disposables.CompositeDisposable
 
-class CallbackLogger(private val logger: Logger, concrete: RxBluetoothGatt.Callback) : SimpleRxBluetoothGattCallback(concrete) {
+@SuppressLint("CheckResult")
+class CallbackLogger(logger: Logger, concrete: RxBluetoothGatt.Callback) : SimpleRxBluetoothGattCallback(concrete) {
 
-    override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
-        logger.v(TAG, "onReadRemoteRssi with rssi $rssi and status $status")
-        super.onReadRemoteRssi(gatt, rssi, status)
+    private val disps = CompositeDisposable()
+
+    init {
+        livingConnection().subscribe({}, { disps.dispose() })
     }
 
-    override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-        logger.v(
-            TAG,
-            "onCharacteristicRead for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
-        )
-        super.onCharacteristicRead(gatt, characteristic, status)
+    override val onConnectionState: Observable<ConnectionState> = super.onConnectionState.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onConnectionStateChange with status ${it.status} and newState ${it.state}") }
+            .also { disps.add(it) }
     }
-
-    override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-        logger.v(
-            TAG,
-            "onCharacteristicWrite for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties} and status $status"
-        )
-        super.onCharacteristicWrite(gatt, characteristic, status)
+    override val onRemoteRssiRead: Observable<RSSI> = super.onRemoteRssiRead.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onReadRemoteRssi with rssi ${it.rssi} and status ${it.status}") }
+            .also { disps.add(it) }
     }
-
-    override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-        logger.v(TAG, "onServicesDiscovered with status $status")
-        super.onServicesDiscovered(gatt, status)
+    override val onServicesDiscovered: Observable<Status> = super.onServicesDiscovered.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onServicesDiscovered with status $it") }
+            .also { disps.add(it) }
     }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onPhyUpdate(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
-        logger.v(TAG, "onPhyUpdate with txPhy $txPhy, rxPhy $rxPhy and status $status")
-        super.onPhyUpdate(gatt, txPhy, rxPhy, status)
+    override val onMtuChanged: Observable<MTU> = super.onMtuChanged.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onMtuChanged with mtu ${it.mtu} and status ${it.status}") }
+            .also { disps.add(it) }
     }
-
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
-    override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-        logger.v(TAG, "onMtuChanged with mtu $mtu and status $status")
-        super.onMtuChanged(gatt, mtu, status)
+    override val onPhyRead: Observable<PHY> = super.onPhyRead.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onPhyRead with txPhy $${it.connectionPHY.transmitter}, rxPhy ${it.connectionPHY.receiver} and status ${it.status}") }
+            .also { disps.add(it) }
     }
-
-    override fun onReliableWriteCompleted(gatt: BluetoothGatt, status: Int) {
-        logger.v(TAG, "onReliableWriteCompleted with status $status")
-        super.onReliableWriteCompleted(gatt, status)
+    override val onPhyUpdate: Observable<PHY> = super.onPhyUpdate.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onPhyUpdate with txPhy ${it.connectionPHY.transmitter}, rxPhy ${it.connectionPHY.receiver} and status ${it.status}") }
+            .also { disps.add(it) }
     }
-
-    override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-        logger.v(TAG, "onDescriptorWrite for descriptor ${descriptor.uuid}, value 0x${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
-        super.onDescriptorWrite(gatt, descriptor, status)
+    override val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>> = super.onCharacteristicRead.also { source ->
+        source
+            .subscribe {
+                logger.v(
+                    TAG,
+                    "onCharacteristicRead for characteristic ${it.first.uuid}, " +
+                            "value 0x${it.first.value.toHexString()}, " +
+                            "permissions ${it.first.permissions}, " +
+                            "properties ${it.first.properties} and " +
+                            "status ${it.second}"
+                )
+            }
+            .also { disps.add(it) }
     }
-
-    override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-        logger.v(
-            TAG,
-            "onCharacteristicChanged for characteristic ${characteristic.uuid}, value 0x${characteristic.value.toHexString()}, permissions ${characteristic.permissions}, properties ${characteristic.properties}"
-        )
-        super.onCharacteristicChanged(gatt, characteristic)
+    override val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>> = super.onCharacteristicWrite.also { source ->
+        source
+            .subscribe {
+                logger.v(
+                    TAG,
+                    "onCharacteristicWrite for characteristic ${it.first.uuid}, " +
+                            "value 0x${it.first.value.toHexString()}, " +
+                            "permissions ${it.first.permissions}, " +
+                            "properties ${it.first.properties} and " +
+                            "status ${it.second}"
+                )
+            }
+            .also { disps.add(it) }
     }
-
-    override fun onDescriptorRead(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-        logger.v(TAG, "onDescriptorRead for descriptor ${descriptor.uuid}, value 0x${descriptor.value.toHexString()}, permissions ${descriptor.permissions}")
-        super.onDescriptorRead(gatt, descriptor, status)
+    override val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic> = super.onCharacteristicChanged.also { source ->
+        source
+            .subscribe {
+                logger.v(
+                    TAG,
+                    "onCharacteristicChanged for characteristic ${it.uuid}, " +
+                            "value 0x${it.value.toHexString()}, " +
+                            "permissions ${it.permissions}, " +
+                            "properties ${it.properties}"
+                )
+            }
+            .also { disps.add(it) }
     }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    override fun onPhyRead(gatt: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
-        logger.v(TAG, "onPhyRead with txPhy $txPhy, rxPhy $rxPhy and status $status")
-        super.onPhyRead(gatt, txPhy, rxPhy, status)
+    override val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>> = super.onDescriptorRead.also { source ->
+        source
+            .subscribe {
+                logger.v(
+                    TAG, "onDescriptorRead for descriptor ${it.first.uuid}, " +
+                            "value 0x${it.first.value.toHexString()}, " +
+                            "permissions ${it.first.permissions} and " +
+                            "status ${it.second}"
+                )
+            }
+            .also { disps.add(it) }
     }
-
-    override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-        logger.v(TAG, "onConnectionStateChange with status $status and newState $newState")
-        super.onConnectionStateChange(gatt, status, newState)
+    override val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>> = super.onDescriptorWrite.also { source ->
+        source
+            .subscribe {
+                logger.v(
+                    TAG, "onDescriptorWrite for descriptor ${it.first.uuid}, " +
+                            "value 0x${it.first.value.toHexString()}, " +
+                            "permissions ${it.first.permissions} and " +
+                            "status ${it.second}"
+                )
+            }
+            .also { disps.add(it) }
+    }
+    override val onReliableWriteCompleted: Observable<Status> = super.onReliableWriteCompleted.also { source ->
+        source
+            .subscribe { logger.v(TAG, "onReliableWriteCompleted with status $it") }
+            .also { disps.add(it) }
     }
 
     companion object {
