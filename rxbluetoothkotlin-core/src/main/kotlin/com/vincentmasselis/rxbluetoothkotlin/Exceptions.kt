@@ -111,7 +111,7 @@ sealed class DeviceDisconnected(val device: BluetoothDevice, val status: Int) : 
 
     /**
      * Fired when device disconnect. Unlike the other sealed classes, this [Throwable] doesn't
-     * provides the bluetooth operation which has failed.
+     * provides the bluetooth operation which has failed and caused a disconnection.
      */
     class SimpleDeviceDisconnected(bluetoothDevice: BluetoothDevice, status: Int) : DeviceDisconnected(bluetoothDevice, status) {
         override fun toString(): String = "SimpleDeviceDisconnected() ${super.toString()}"
