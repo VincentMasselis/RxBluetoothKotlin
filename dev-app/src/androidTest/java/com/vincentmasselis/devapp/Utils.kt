@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.IntentFilter
+import android.util.Log
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.Observable
 import java.util.*
@@ -33,3 +34,29 @@ fun bluetoothPreconditions(activity: TestActivity) {
 val BATTERY_CHARACTERISTIC: UUID = UUID.fromString("00002A19-0000-1000-8000-00805F9B34FB")
 
 const val DEVICE_MAC = "EE:72:0C:43:49:B6"
+object AndroidLogger : com.vincentmasselis.rxbluetoothkotlin.Logger {
+    override fun v(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+    override fun d(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+    override fun i(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+    override fun w(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+    override fun e(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+    override fun wtf(tag: String, message: String, throwable: Throwable?) {
+        Log.v("AndroidLogger", message, throwable)
+    }
+
+}

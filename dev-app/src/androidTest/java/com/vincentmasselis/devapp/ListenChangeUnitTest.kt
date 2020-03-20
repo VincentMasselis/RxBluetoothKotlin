@@ -18,33 +18,6 @@ class ListenChangeUnitTest {
 
     @get:Rule val mainActivityRule = ActivityTestRule(TestActivity::class.java, true, false)
 
-    private object Logger : com.vincentmasselis.rxbluetoothkotlin.Logger {
-        override fun v(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-        override fun d(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-        override fun i(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-        override fun w(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-        override fun e(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-        override fun wtf(tag: String, message: String, throwable: Throwable?) {
-            Log.v(TAG, message, throwable)
-        }
-
-    }
-
     /** While listening characteristic, plug in the device to update the battery percent */
     @Test
     fun listenChangeTest() {

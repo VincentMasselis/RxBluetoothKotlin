@@ -21,6 +21,7 @@ import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "BluetoothManager+rx"
+
 /**
  * Reactive way to get [ScanResult] while scanning.
  *
@@ -129,40 +130,34 @@ fun BluetoothManager.rxScan(
                 }
 
                 if (Build.VERSION.SDK_INT == Build.VERSION_CODES.O_MR1) {
+                    // If you look at BluetoothLeScanner.java#389 (SDK 27 sources only) you'll see an early return which causes a silent exception because the method
+                    // `postCallbackError` is not called. Because of this I need to check if the scan callback is really added to the system callback registry right after the scan
+                    // started. If not, an exception occurred and I consider this is because the `SCAN_FAILED_SCANNING_TOO_FREQUENTLY` error was returned since only this error is
+                    // silent.
                     Single
                         .fromCallable {
                             //Since I'm using a scanner compat from nordic, the callback that the system hold is not mine but an instance crated by the nordic lib.
-                            val realCallback = scanner.javaClass.superclass
-                                ?.declaredFields
-                                ?.firstOrNull { it.name == "mCallbacks" }
-                                ?.apply { isAccessible = true }
-                                ?.get(scanner)
-                                ?.let { it as? Map<*, *> }
-                                ?.get(callback)
+                            val nativeCallback = scanner.javaClass.superclass!!.superclass!!
+                                .getDeclaredField("wrappers")
+                                .apply { isAccessible = true }
+                                .get(scanner)!!
+                                .let { (it as Map<*, *>)[callback]!! }
+                                .let { wrapper -> wrapper.javaClass.getDeclaredField("nativeCallback").apply { isAccessible = true }.get(wrapper) }
+                            // Let's check if the system holds my callback
                             val systemScanner = adapter.bluetoothLeScanner
                             systemScanner.javaClass
-                                .declaredFields
-                                .firstOrNull { it.name == "mLeScanClients" }
-                                ?.apply { isAccessible = true }
-                                ?.get(systemScanner)
-                                ?.let { it as? Map<*, *> }
-                                ?.get(realCallback)
-                                ?.let { bluetoothLeScanner ->
-                                    bluetoothLeScanner.javaClass
-                                        .declaredFields
-                                        .firstOrNull { it.name == "mScannerId" }
-                                        ?.apply { isAccessible = true }
-                                        ?.get(bluetoothLeScanner)
-                                }
-                                ?.run { this as? Int }
-                                ?.let { mScannerId ->
-                                    return@fromCallable mScannerId
-                                }
+                                .getDeclaredField("mLeScanClients")
+                                .apply { isAccessible = true }
+                                .get(systemScanner)!!
+                                .let { (it as Map<*, *>).contains(nativeCallback) }
                         }
                         .subscribeOn(Schedulers.computation())
-                        .subscribe({ mScannerId ->
-                            logger?.v(TAG, "rxScan(), system mScannerId for this scan : $mScannerId")
-                            if (mScannerId == -2) //Value fetched from BluetoothLeScanner$BleScanCallbackWrapper.mScannerId. If you check the API27 sources, you will see a -2 in this field when the exception SCAN_FAILED_SCANNING_TOO_FREQUENTLY is fired.
+                        // Legitimate errors could be fired by the system but theses one are send to the main thread by posting on a Handler. To avoid reading `mLeScanClients`
+                        // too soon before the error is returned, I also post on the main thread the force the execution of my code AFTER the error callback is called.
+                        // Take a look at BluetoothLeScanner.java#544
+                        .subscribeOn(AndroidSchedulers.mainThread())
+                        .subscribe({ isNativeCallbackAdded ->
+                            if (isNativeCallbackAdded.not())
                                 downStream.tryOnError(ScanFailedException(6))
                         }, {
                             logger?.w(
