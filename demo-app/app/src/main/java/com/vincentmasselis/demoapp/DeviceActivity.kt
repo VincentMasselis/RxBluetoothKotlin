@@ -51,7 +51,7 @@ class DeviceActivity : AppCompatActivity() {
 
         states
             .filter { it is States.Connecting }
-            .switchMapSingle { device.connectRxGatt(applicationContext as Application) }
+            .switchMapSingle { device.connectRxGatt() }
             .switchMapMaybe { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSubscribe { connecting_progress_bar.visibility = View.VISIBLE }
             .doFinally { connecting_progress_bar.visibility = View.INVISIBLE }

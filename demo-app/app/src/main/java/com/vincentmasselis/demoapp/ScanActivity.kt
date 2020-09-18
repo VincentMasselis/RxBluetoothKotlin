@@ -93,7 +93,7 @@ class ScanActivity : AppCompatActivity() {
     private fun startScan() {
         currentState.onNext(States.StartingScan)
         scanDisp = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager)
-            .rxScan(this, flushEvery = 1L to TimeUnit.SECONDS)
+            .rxScan(flushEvery = 1L to TimeUnit.SECONDS)
             .doOnNext { currentState.onNext(States.Scanning) }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({
