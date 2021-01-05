@@ -6,9 +6,8 @@ import android.os.Build
 import com.vincentmasselis.rxbluetoothkotlin.decorator.CallbackLogger
 import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
 import com.vincentmasselis.rxbluetoothkotlin.internal.hasPermissions
-import io.reactivex.Maybe
-import io.reactivex.Single
-import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Single
 
 private const val TAG = "BluetoothDevice+rx"
 

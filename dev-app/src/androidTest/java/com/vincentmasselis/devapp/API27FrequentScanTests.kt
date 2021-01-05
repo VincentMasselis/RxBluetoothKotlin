@@ -8,9 +8,8 @@ import androidx.test.rule.ActivityTestRule
 import androidx.test.rule.GrantPermissionRule
 import com.vincentmasselis.rxbluetoothkotlin.ScanFailedException
 import com.vincentmasselis.rxbluetoothkotlin.rxScan
-import io.reactivex.Flowable
-import io.reactivex.Observable
-import io.reactivex.functions.Predicate
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Observable
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,7 +44,7 @@ class API27FrequentScanTests {
             .doOnError { Logger.d(TAG, "Failed, reason :$it") }
             .test()
             .await()
-            .assertFailure(Predicate { it is ScanFailedException && it.status == 6 })
+            .assertError { it is ScanFailedException && it.status == 6 }
 
         activity.setMessage("Test finished please wait")
 
@@ -71,7 +70,7 @@ class API27FrequentScanTests {
             .doOnError { Logger.d(TAG, "Failed, reason :$it") }
             .test()
             .await()
-            .assertFailure(Predicate { it is ScanFailedException && it.status != 6 })
+            .assertError { it is ScanFailedException && it.status != 6 }
 
         activity.setMessage("Test finished please wait")
 

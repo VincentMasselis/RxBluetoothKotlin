@@ -2,7 +2,7 @@
 [![Build Status](https://app.bitrise.io/app/94c2826fa7361333/status.svg?token=dAysx6Rt7j8iL29CFZlzGQ&branch=master)](https://app.bitrise.io/app/94c2826fa7361333)
 
 # RxBluetoothKotlin
-Android + BLE + Kotlin + RxJava2
+Android + BLE + Kotlin + RxJava3
 
 Bluetooth Low Energy on Android made easy with RxJava.
 
@@ -21,9 +21,9 @@ If you're targeting Android API 28 and less, the last supported release is 1.2.1
 ```groovy
 implementation 'com.vincentmasselis.rxbluetoothkotlin:rxbluetoothkotlin-core:1.3.0'
 // Add this to use the scanner
-implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
+implementation 'no.nordicsemi.android.support.v18:scanner:1.4.3'
 // RxBluetoothKotlin doesn't provides the RxJava dependecy, you have to add it yourself:
-implementation 'io.reactivex.rxjava2:rxjava:2.2.11'
+implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
 ```
 
 ### Scan

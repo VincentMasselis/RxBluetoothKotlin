@@ -6,19 +6,28 @@ apply plugin: 'maven-publish'
 
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion "28.0.3"
+    compileSdkVersion 30
+    buildToolsVersion "30.0.2"
 
     defaultConfig {
         minSdkVersion 18
-        targetSdkVersion 29
+        targetSdkVersion 30
         versionCode versionCode
         versionName libVersion
+        multiDexEnabled true
     }
     buildTypes {
         release {
             consumerProguardFiles 'proguard-rules.pro'
         }
+    }
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
     }
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
@@ -31,11 +40,13 @@ dokka {
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:1.1.1'
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'androidx.appcompat:appcompat:1.1.0'
-    implementation "io.reactivex.rxjava2:rxjava:2.2.18"
-    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
-    implementation 'no.nordicsemi.android.support.v18:scanner:1.4.0'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
+    implementation 'io.reactivex.rxjava3:rxandroid:3.0.0'
+    implementation 'no.nordicsemi.android.support.v18:scanner:1.4.3'
 }
 
 ext {

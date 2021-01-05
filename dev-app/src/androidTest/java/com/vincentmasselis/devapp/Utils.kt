@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.IntentFilter
 import android.util.Log
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import java.util.*
 
 fun bluetoothPreconditions(activity: TestActivity) {
@@ -17,7 +17,12 @@ fun bluetoothPreconditions(activity: TestActivity) {
     bluetoothManager.adapter.enable()
     IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         .toObservable(activity)
-        .map { (_, intent) -> intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR) }
+        .map { (_, intent) ->
+            intent.getIntExtra(
+                BluetoothAdapter.EXTRA_STATE,
+                BluetoothAdapter.ERROR
+            )
+        }
         .startWith(Observable.fromCallable {
             if (bluetoothManager.adapter.isEnabled) BluetoothAdapter.STATE_ON
             else BluetoothAdapter.STATE_OFF
@@ -31,9 +36,14 @@ fun bluetoothPreconditions(activity: TestActivity) {
     Thread.sleep(1000)
 }
 
-val BATTERY_CHARACTERISTIC: UUID = UUID.fromString("00002A19-0000-1000-8000-00805F9B34FB")
+// Read capability but notify takes a long to emit
+val CURRENT_TIME_CHARACTERISTIC: UUID = UUID.fromString("00002A2B-0000-1000-8000-00805F9B34FB")
 
-const val DEVICE_MAC = "EE:72:0C:43:49:B6"
+// Unable to read but notify takes a few seconds to emit
+val HEART_RATE_CHARACTERISTIC: UUID = UUID.fromString("00002A37-0000-1000-8000-00805F9B34FB")
+
+const val DEVICE_NAME = "MOCK"
+
 object AndroidLogger : com.vincentmasselis.rxbluetoothkotlin.Logger {
     override fun v(tag: String, message: String, throwable: Throwable?) {
         Log.v("AndroidLogger", message, throwable)

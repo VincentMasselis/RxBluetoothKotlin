@@ -6,8 +6,8 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.*
-import io.reactivex.Flowable
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Observable
 
 abstract class SimpleRxBluetoothGattCallback(private val concrete: RxBluetoothGatt.Callback) : RxBluetoothGatt.Callback {
     override val source: BluetoothGattCallback = concrete.source

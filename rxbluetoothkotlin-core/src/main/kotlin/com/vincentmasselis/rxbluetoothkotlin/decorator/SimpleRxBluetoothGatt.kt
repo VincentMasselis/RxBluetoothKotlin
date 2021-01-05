@@ -6,10 +6,10 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import com.vincentmasselis.rxbluetoothkotlin.ConnectionPHY
 import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt
-import io.reactivex.Flowable
-import io.reactivex.FlowableTransformer
-import io.reactivex.Maybe
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.FlowableTransformer
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
 
 abstract class SimpleRxBluetoothGatt(private val concrete: RxBluetoothGatt) : RxBluetoothGatt {
     override val source: BluetoothGatt = concrete.source

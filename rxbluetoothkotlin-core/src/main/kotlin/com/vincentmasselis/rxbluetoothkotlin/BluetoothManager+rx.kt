@@ -14,9 +14,10 @@ import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
 import com.vincentmasselis.rxbluetoothkotlin.internal.hasPermissions
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.*
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import no.nordicsemi.android.support.v18.scanner.*
 import java.util.concurrent.TimeUnit
 

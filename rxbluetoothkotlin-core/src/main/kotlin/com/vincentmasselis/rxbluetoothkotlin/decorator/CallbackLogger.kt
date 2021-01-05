@@ -5,9 +5,9 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.toHexString
-import io.reactivex.Flowable
-import io.reactivex.Observable
-import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxjava3.core.Flowable
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 
 @SuppressLint("CheckResult")
 class CallbackLogger(logger: Logger, concrete: RxBluetoothGatt.Callback) : SimpleRxBluetoothGattCallback(concrete) {

@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 
 fun IntentFilter.toObservable(context: Context): Observable<Pair<Context, Intent>> = Observable.create { downStream ->
     val receiver = object : BroadcastReceiver() {

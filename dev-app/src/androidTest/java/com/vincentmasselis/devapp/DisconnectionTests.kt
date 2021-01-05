@@ -31,10 +31,10 @@ class DisconnectionTests {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt ->
                 gatt.disconnect().subscribe()
                 gatt.whenConnectionIsReady().map { gatt }
@@ -59,10 +59,10 @@ class DisconnectionTests {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt ->
                 activity.postForUI(10L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() }
                 gatt.whenConnectionIsReady().map { gatt }
@@ -87,10 +87,10 @@ class DisconnectionTests {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt ->
                 activity.postForUI(100L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() }
                 gatt.whenConnectionIsReady().map { gatt }
@@ -115,10 +115,10 @@ class DisconnectionTests {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt ->
                 activity.postForUI(5L to TimeUnit.SECONDS) { gatt.disconnect().subscribe() }
                 gatt.whenConnectionIsReady().map { gatt }
@@ -144,10 +144,10 @@ class DisconnectionTests {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { activity.setMessage("Discovering services") }
             .delay(600, TimeUnit.MILLISECONDS)

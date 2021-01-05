@@ -6,7 +6,8 @@ import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt.Callback
 import io.reactivex.*
-import io.reactivex.annotations.CheckReturnValue
+import io.reactivex.rxjava3.annotations.CheckReturnValue
+import io.reactivex.rxjava3.core.*
 
 /**
  * Wrapper of a [BluetoothGatt] instance which adds useful reactive methods. Not all the methods from [BluetoothGatt] are written here, only them which requires asynchronous

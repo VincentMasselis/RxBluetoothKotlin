@@ -7,8 +7,8 @@ import androidx.test.rule.ActivityTestRule
 import androidx.test.rule.GrantPermissionRule
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.postForUI
-import io.reactivex.Maybe
-import io.reactivex.rxkotlin.Maybes
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.kotlin.Maybes
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +20,10 @@ class EnqueueUnitTest {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.BLUETOOTH_ADMIN)
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+        android.Manifest.permission.BLUETOOTH_ADMIN
+    )
 
     @Rule
     @JvmField
@@ -36,10 +39,10 @@ class EnqueueUnitTest {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .delay(600, TimeUnit.MILLISECONDS)
             .doOnSuccess { activity.setMessage("Discovering services") }
@@ -48,9 +51,11 @@ class EnqueueUnitTest {
             .flatMap { gatt ->
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSuccess { Logger.v(TAG, "battery1 : ${it[0].toInt()}") },
-                        gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
+                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                            .doOnSuccess { Logger.v(TAG, "currentTime1 : ${it[0].toInt()}") },
+                        gatt.enableNotification(
+                            gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!
+                        )
                             .doOnSuccess { Logger.v(TAG, "Enabled notification") },
                         gatt.readRemoteRssi()
                             .doOnSuccess { Logger.v(TAG, "rssi $it") }
@@ -80,24 +85,33 @@ class EnqueueUnitTest {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { activity.setMessage("Discovering services") }
             .delay(600, TimeUnit.MILLISECONDS)
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .delay(7, TimeUnit.SECONDS) // Small delay to force the sensor switch into 500ms connection interval
+            .delay(
+                7,
+                TimeUnit.SECONDS
+            ) // Small delay to force the sensor switch into 500ms connection interval
             .doOnSuccess { activity.setMessage("Running tests") }
             .flatMap { gatt ->
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
-                            .doOnSubscribe { activity.postForUI(50L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } } // Manual disconnection while reading
-                            .doOnSubscribe { Logger.v(TAG, "battery1 subscription") }
-                            .doOnComplete { Logger.v(TAG, "battery1 completed") },
-                        gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!)
+                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                            .doOnSubscribe {
+                                activity.postForUI(50L to TimeUnit.MILLISECONDS) {
+                                    gatt.disconnect().subscribe()
+                                }
+                            } // Manual disconnection while reading
+                            .doOnSubscribe { Logger.v(TAG, "currentTime1 subscription") }
+                            .doOnComplete { Logger.v(TAG, "currentTime1 completed") },
+                        gatt.enableNotification(
+                            gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!
+                        )
                             .doOnSubscribe { Logger.v(TAG, "Enabled notification subscription") }
                             .doOnComplete { Logger.v(TAG, "Enabled notification completed") },
                         gatt.readRemoteRssi()
@@ -124,10 +138,10 @@ class EnqueueUnitTest {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { it.disconnect().subscribe() }
             .doOnSuccess { activity.setMessage("Discovering services") }
@@ -152,10 +166,10 @@ class EnqueueUnitTest {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { it.disconnect().subscribe() }
             .doOnSuccess { activity.setMessage("Discovering services") }
@@ -180,10 +194,10 @@ class EnqueueUnitTest {
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
             .doOnSubscribe { activity.setMessage("Please wakeup your device") }
-            .filter { it.device.address == DEVICE_MAC } // Write the mac address for your own device here
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
             .doOnSuccess { activity.setMessage("Connecting") }
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { activity.setMessage("Discovering services") }
             .delay(600, TimeUnit.MILLISECONDS)
@@ -192,14 +206,20 @@ class EnqueueUnitTest {
             .flatMap { gatt ->
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { 1 }.switchIfEmpty(Maybe.just(0)),
+                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                            .map { 1 }.switchIfEmpty(Maybe.just(0)),
                         gatt.readRemoteRssi().map { 1 }.switchIfEmpty(Maybe.just(0)),
-                        gatt.read(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { 1 }.switchIfEmpty(Maybe.just(0))
+                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                            .map { 1 }.switchIfEmpty(Maybe.just(0))
                     )
                     .doOnSubscribe { Logger.e(TAG, "I/O Subscription") }
                     .doOnDispose { Logger.e(TAG, "I/O Dispose") }
                     .doOnEvent { t1, t2 -> Logger.e(TAG, "I/O t1 $t1, t2 $t2") }
-                    .doOnSubscribe { activity.postForUI(10L to TimeUnit.MILLISECONDS) { gatt.disconnect().subscribe() } }
+                    .doOnSubscribe {
+                        activity.postForUI(10L to TimeUnit.MILLISECONDS) {
+                            gatt.disconnect().subscribe()
+                        }
+                    }
             }
             .doOnError { Logger.e(TAG, "Failed, reason :$it") }
             .timeout(20L, TimeUnit.SECONDS)

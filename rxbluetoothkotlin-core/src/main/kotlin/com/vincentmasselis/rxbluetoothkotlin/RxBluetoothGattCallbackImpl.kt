@@ -6,10 +6,10 @@ import android.content.Context
 import android.content.IntentFilter
 import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
 import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
-import io.reactivex.Observable
-import io.reactivex.processors.PublishProcessor
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.processors.PublishProcessor
+import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.subjects.PublishSubject
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 

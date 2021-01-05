@@ -10,7 +10,6 @@ import com.vincentmasselis.rxbluetoothkotlin.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.*
 
 
 @RunWith(AndroidJUnit4::class)
@@ -24,13 +23,13 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == DEVICE_MAC }
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { gatt } }
-            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!) }
+            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!).map { gatt } }
+            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!) }
             .doOnNext { Log.v(TAG, "battery1 : ${it[0].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .blockingFirst()
@@ -43,9 +42,9 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == DEVICE_MAC }
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .doOnSuccess { gatt ->
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -53,9 +52,9 @@ class ListenChangeUnitTest {
                 }, 1000)
             }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { gatt } }
-            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!) }
-            .doOnNext { Log.v(TAG, "battery1 : ${it[0].toInt()}") }
+            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!).map { gatt } }
+            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!) }
+            .doOnNext { Log.v(TAG, "currentTime1 : ${it[0].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .blockingSubscribe(
                 { throw IllegalStateException() },
@@ -71,14 +70,14 @@ class ListenChangeUnitTest {
         val activity = mainActivityRule.launchActivity(null)
         (activity.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager)
             .rxScan()
-            .filter { it.device.address == DEVICE_MAC }
+            .filter { it.device.name == DEVICE_NAME }
             .firstElement()
-            .flatMapSingleElement { it.device.connectRxGatt(logger = Logger) }
+            .flatMapSingle { it.device.connectRxGatt(logger = Logger) }
             .flatMap { gatt -> gatt.whenConnectionIsReady().map { gatt } }
             .flatMap { gatt -> gatt.discoverServices().map { gatt } }
-            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!).map { gatt } }
-            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(BATTERY_CHARACTERISTIC)!!) }
-            .doOnNext { Log.v(TAG, "battery1 : ${it[0].toInt()}") }
+            .flatMap { gatt -> gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!).map { gatt } }
+            .flatMapPublisher { gatt -> gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!) }
+            .doOnNext { Log.v(TAG, "currentTime1 : ${it[0].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .blockingSubscribe(
                 {},
@@ -91,7 +90,6 @@ class ListenChangeUnitTest {
     }
 
     companion object {
-        private val BATTERY_CHARACTERISTIC = UUID.fromString("00002A19-0000-1000-8000-00805F9B34FB")
         const val TAG = "ListenChangeUnitTest"
     }
 }

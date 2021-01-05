@@ -7,10 +7,9 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.vincentmasselis.rxbluetoothkotlin.DeviceDisconnected.*
 import com.vincentmasselis.rxbluetoothkotlin.internal.*
-import io.reactivex.*
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.functions.Function
-import io.reactivex.subjects.UnicastSubject
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.*
+import io.reactivex.rxjava3.subjects.UnicastSubject
 import java.util.concurrent.TimeUnit
 
 /**
@@ -43,7 +42,7 @@ class RxBluetoothGattImpl(
     // -------------------- Connection tools
 
     private inline fun <T> Observable<T>.handleCallbackDisconnection(crossinline exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this
-        .onErrorResumeNext(Function {
+        .onErrorResumeNext {
             when (it) {
                 is RxBluetoothGatt.Callback.StateDisconnected ->
                     if (it.status == null) Observable.empty()
@@ -51,10 +50,10 @@ class RxBluetoothGattImpl(
 
                 else -> Observable.error(it)
             }
-        })
+        }
 
     private inline fun <T> Flowable<T>.handleCallbackDisconnection(crossinline exceptionConverter: (device: BluetoothDevice, status: Int) -> DeviceDisconnected) = this
-        .onErrorResumeNext(Function {
+        .onErrorResumeNext {
             when (it) {
                 is RxBluetoothGatt.Callback.StateDisconnected ->
                     if (it.status == null) Flowable.empty()
@@ -62,7 +61,7 @@ class RxBluetoothGattImpl(
 
                 else -> Flowable.error(it)
             }
-        })
+        }
 
     override fun livingConnection(): Observable<Unit> = callback.livingConnection().handleCallbackDisconnection(::SimpleDeviceDisconnected)
 
