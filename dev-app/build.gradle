@@ -51,6 +51,7 @@ dependencies {
     implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
     implementation 'no.nordicsemi.android.support.v18:scanner:1.4.3'
     implementation 'com.vincentmasselis.rxuikotlin:rxuikotlin-core:3.0.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
 
     implementation project(':rxbluetoothkotlin-core')
 }
