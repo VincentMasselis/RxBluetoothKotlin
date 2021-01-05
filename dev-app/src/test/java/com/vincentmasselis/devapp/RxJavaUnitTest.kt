@@ -1,11 +1,10 @@
 package com.vincentmasselis.devapp
 
-import io.reactivex.*
-import io.reactivex.functions.Function
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
-import io.reactivex.subjects.UnicastSubject
+import io.reactivex.rxjava3.core.*
+import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.subjects.PublishSubject
+import io.reactivex.rxjava3.subjects.UnicastSubject
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 import kotlin.test.fail
@@ -36,12 +35,12 @@ class RxJavaUnitTest {
             .switchMapSingle {
                 Single.timer(50, TimeUnit.MILLISECONDS)
             }
-            .onErrorResumeNext(Function {
+            .onErrorResumeNext {
                 if (it is DisconnectException)
                     Observable.empty()
                 else
                     Observable.error(it)
-            })
+            }
             .firstElement()
             .doOnEvent { t1, t2 ->
                 println("${System.currentTimeMillis()} I/O value : $t1")
@@ -78,12 +77,12 @@ class RxJavaUnitTest {
             .switchMapSingle {
                 Single.timer(150, TimeUnit.MILLISECONDS)
             }
-            .onErrorResumeNext(Function {
+            .onErrorResumeNext {
                 if (it is DisconnectException)
                     Observable.empty()
                 else
                     Observable.error(it)
-            })
+            }
             .firstElement()
             .doOnEvent { t1, t2 ->
                 println("${System.currentTimeMillis()} I/O value : $t1")
@@ -104,7 +103,7 @@ class RxJavaUnitTest {
         println("-------- livingConnectionErrorTest")
 
         Observable.just(Unit)
-            .mergeWith(Observable.timer(50, TimeUnit.MILLISECONDS).flatMap { Observable.error<Unit>(Throwable()) })
+            .mergeWith(Observable.timer(50, TimeUnit.MILLISECONDS).flatMap { Observable.error(Throwable()) })
             .doOnEach {
                 println("${System.currentTimeMillis()} living connection value : ${it.value}")
                 println("${System.currentTimeMillis()} living connection error : ${it.error}")
@@ -116,12 +115,12 @@ class RxJavaUnitTest {
             .switchMapSingle {
                 Single.timer(150, TimeUnit.MILLISECONDS)
             }
-            .onErrorResumeNext(Function {
+            .onErrorResumeNext {
                 if (it is DisconnectException)
                     Observable.empty()
                 else
                     Observable.error(it)
-            })
+            }
             .firstElement()
             .doOnEvent { t1, t2 ->
                 println("${System.currentTimeMillis()} I/O value : $t1")
