@@ -2,7 +2,6 @@ package com.masselis.devapp
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.vincentmasselis.devapp.R
 import com.vincentmasselis.rxuikotlin.postForUI
 import kotlinx.android.synthetic.main.activity_test.*
 
