@@ -1,7 +1,6 @@
 package com.vincentmasselis.demoapp
 
 import android.annotation.SuppressLint
-import android.app.Application
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
@@ -10,20 +9,20 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import com.jakewharton.rxbinding2.view.clicks
+import com.jakewharton.rxbinding4.view.clicks
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
-import io.reactivex.Maybe
-import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.subjects.BehaviorSubject
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Maybe
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.subjects.BehaviorSubject
 import kotlinx.android.synthetic.main.activity_device.*
 import java.util.*
 
 class DeviceActivity : AppCompatActivity() {
 
-    private val device by lazy { intent.getParcelableExtra<BluetoothDevice>(DEVICE_EXTRA) }
+    private val device by lazy { intent.getParcelableExtra<BluetoothDevice>(DEVICE_EXTRA)!! }
 
     private val states = BehaviorSubject.createDefault<States>(States.Connecting)
 
@@ -120,8 +119,9 @@ class DeviceActivity : AppCompatActivity() {
     }
 
     companion object {
-        fun intent(context: Context, device: BluetoothDevice): Intent = Intent(context, DeviceActivity::class.java)
-            .putExtra(DEVICE_EXTRA, device)
+        fun intent(context: Context, device: BluetoothDevice): Intent =
+            Intent(context, DeviceActivity::class.java)
+                .putExtra(DEVICE_EXTRA, device)
 
         private const val DEVICE_EXTRA = "DEVICE_EXTRA"
     }

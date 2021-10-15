@@ -7,7 +7,7 @@ import kotlinx.android.synthetic.main.cell_scan_result.*
 
 class ScanResultViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView), LayoutContainer {
 
-    override val containerView: View? get() = itemView
+    override val containerView: View get() = itemView
 
     fun bind(name: String, address: String) {
         scan_result_name.text = name
