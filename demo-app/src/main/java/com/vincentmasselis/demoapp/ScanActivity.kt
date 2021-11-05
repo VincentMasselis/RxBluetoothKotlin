@@ -110,16 +110,11 @@ class ScanActivity : AppCompatActivity() {
                     is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this)
                         .setMessage("The current device doesn't support bluetooth le").show()
                     is NeedLocationPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        requestPermissions(
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                            PERMISSION_CODE_FINE_LOCATION
-                        )
-                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this)
-                        .setMessage("Bluetooth is turned off").show()
-                    is LocationServiceDisabled -> startActivityForResult(
-                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS),
-                        REQUEST_CODE_ENABLE_LOCATION
-                    )
+                        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)
+                    is NeedBluetoothPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                        requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN), PERMISSION_CODE_FINE_LOCATION)
+                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
+                    is LocationServiceDisabled -> startActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQUEST_CODE_ENABLE_LOCATION)
                     else -> AlertDialog.Builder(this).setMessage("Error occurred: $it").show()
                 }
             })

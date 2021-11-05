@@ -1,6 +1,7 @@
 package com.masselis.rxbluetoothkotlin
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -14,6 +15,9 @@ import androidx.core.content.getSystemService
 import com.masselis.rxbluetoothkotlin.internal.appContext
 import com.masselis.rxbluetoothkotlin.internal.hasPermissions
 import com.masselis.rxbluetoothkotlin.internal.observe
+import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
+import com.vincentmasselis.rxbluetoothkotlin.internal.missingPermission
+import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.*
@@ -58,12 +62,21 @@ public fun BluetoothManager.rxScan(
 ): Flowable<ScanResult> =
     Completable
         .defer {
-            when {
+            val missingPermission = missingPermission()
+                    when {
                 adapter == null || appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE).not() -> {
                     logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
                     return@defer Completable.error(DeviceDoesNotSupportBluetooth())
                 }
-                hasPermissions().not() -> {
+                missingPermission == Manifest.permission.BLUETOOTH_CONNECT -> {
+                    logger?.v(TAG, "rxScan(), error : NeedBluetoothConnectPermission()")
+                    return@defer Completable.error(NeedBluetoothConnectPermission())
+                }
+                missingPermission == Manifest.permission.BLUETOOTH_SCAN -> {
+                    logger?.v(TAG, "rxScan(), error : NeedBluetoothScanPermission()")
+                    return@defer Completable.error(NeedBluetoothScanPermission())
+                }
+                missingPermission == Manifest.permission.ACCESS_FINE_LOCATION -> {
                     logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
                     return@defer Completable.error(NeedLocationPermission())
                 }

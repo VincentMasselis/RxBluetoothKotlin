@@ -40,6 +40,22 @@ public class NeedLocationPermission : Throwable() {
 }
 
 /**
+ * Error fired if the bluetooth permission is require for the current app. You have to request for
+ * the missing permission [android.Manifest.permission.BLUETOOTH_SCAN].
+ */
+class NeedBluetoothScanPermission : Throwable() {
+    override fun toString(): String = "NeedBluetoothScanPermission()"
+}
+
+/**
+ * Error fired if the bluetooth permission is require for the current app. You have to request for
+ * the missing permission [android.Manifest.permission.BLUETOOTH_CONNECT].
+ */
+class NeedBluetoothConnectPermission : Throwable() {
+    override fun toString(): String = "NeedBluetoothConnectPermission()"
+}
+
+/**
  * Fired if location service is disabled for the app. You can ask the user to enable Location
  * service by starting an activity for result with this intent :
  * [android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS]
