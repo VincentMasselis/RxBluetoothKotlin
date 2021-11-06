@@ -1,5 +1,7 @@
 package com.vincentmasselis.demoapp
 
+
+
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
@@ -9,6 +11,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.jakewharton.rxbinding4.view.clicks
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
@@ -25,6 +28,8 @@ class DeviceActivity : AppCompatActivity() {
     private val device by lazy { intent.getParcelableExtra<BluetoothDevice>(DEVICE_EXTRA)!! }
 
     private val states = BehaviorSubject.createDefault<States>(States.Connecting)
+
+    private var currTime = System.currentTimeMillis()
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,39 +76,201 @@ class DeviceActivity : AppCompatActivity() {
                 }
             )
             .disposeOnState(ActivityState.DESTROY, this)
-
+        //on button. Send an "on" command to the ESP32 to turn the LED on, then read the LED state
         states
             .switchMap { state ->
                 when (state) {
                     States.Connecting -> Observable.empty()
-                    is States.Connected -> read_battery_button.clicks().map { state.gatt }
+                    is States.Connected -> onButton.clicks().map { state.gatt }
                 }
             }
-            .subscribe { gatt ->
-                battery_text_view.text = ""
-                Maybe
-                    .defer {
-                        if (gatt.source.services.isEmpty()) gatt.discoverServices()
-                        else Maybe.just(gatt.source.services)
-                    }
-                    // Battery characteristic
-                    .flatMap { gatt.read(gatt.source.findCharacteristic(UUID.fromString("00002A19-0000-1000-8000-00805F9B34FB"))!!) }
-                    .map { it[0].toInt() }
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(
-                        { battery_text_view.text = "$it%" },
-                        {
-                            val message =
-                                when (it) {
-                                    is BluetoothIsTurnedOff -> "Bluetooth is turned off"
-                                    is DeviceDisconnected.CharacteristicReadDeviceDisconnected -> "Device disconnected while reading battery"
-                                    is CannotInitialize.CannotInitializeCharacteristicReading -> "Failed to initialize battery read"
-                                    is IOFailed.CharacteristicReadingFailed -> "Failed to read the battery"
-                                    else -> "Error occurred: $it"
-                                }
-                            AlertDialog.Builder(this).setMessage(message).show()
-                        })
-                    .disposeOnState(ActivityState.DESTROY, this)
+            .switchMapMaybe { gatt ->
+                (
+                    if (gatt.source.services.isEmpty()) gatt.discoverServices()
+                    else Maybe.just(gatt.source.services)
+                ).flatMap {
+                        val myData = byteArrayOf((1).toByte())
+                    gatt.write(gatt.source.findCharacteristic(UUID.fromString("6E400004-B5A3-F393-E0A9-E50E24DCCA9E"))!!,myData)
+                }
+                .flatMap { gatt.read(it) }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+
+            .subscribe (
+                {
+                    val pic =
+                        if (it[0].toInt() == 1) {
+                            ContextCompat.getDrawable(
+                                applicationContext, // Context
+                                R.drawable.onlight // Drawable
+                            )
+                        }else{
+                            ContextCompat.getDrawable(
+                                applicationContext, // Context
+                                R.drawable.offlight // Drawable
+                            )
+                        }
+                    imageView.setImageDrawable(pic)
+                },
+                {
+                    val message =
+                        when (it) {
+                            is BluetoothIsTurnedOff -> "Bluetooth is turned off"
+                            is DeviceDisconnected.CharacteristicReadDeviceDisconnected -> "Device disconnected while reading battery"
+                            is CannotInitialize.CannotInitializeCharacteristicReading -> "Failed to initialize battery read"
+                            is IOFailed.CharacteristicReadingFailed -> "Failed to read the battery"
+                            else -> "Error occurred: $it"
+                        }
+                    AlertDialog.Builder(this).setMessage(message).show()
+                })
+            .disposeOnState(ActivityState.DESTROY, this)
+        //offbutton. Send an "off" command to the ESP32 to turn the LED off, then read the LED state
+        states
+            .switchMap { state ->
+                when (state) {
+                    States.Connecting -> Observable.empty()
+                    is States.Connected -> offButton.clicks().map { state.gatt }
+                }
+            }
+            .switchMapMaybe { gatt ->
+                (
+                    if (gatt.source.services.isEmpty()) gatt.discoverServices()
+                    else  Maybe.just(gatt.source.services)
+                ).flatMap {
+                    val myData = byteArrayOf((0).toByte())
+                    gatt.write(gatt.source.findCharacteristic(UUID.fromString("6E400004-B5A3-F393-E0A9-E50E24DCCA9E"))!!,myData)
+                }
+                .flatMap { gatt.read(it) }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe (
+                {
+                    val pic =
+                        if (it[0].toInt() == 1) {
+                            ContextCompat.getDrawable(
+                                applicationContext, // Context
+                                R.drawable.onlight // Drawable
+                            )
+                        }else{
+                            ContextCompat.getDrawable(
+                                applicationContext, // Context
+                                R.drawable.offlight // Drawable
+                            )
+                        }
+                    imageView.setImageDrawable(pic)
+                },
+                {
+                    val message =
+                        when (it) {
+                            is BluetoothIsTurnedOff -> "Bluetooth is turned off"
+                            is DeviceDisconnected.CharacteristicReadDeviceDisconnected -> "Device disconnected while reading battery"
+                            is CannotInitialize.CannotInitializeCharacteristicReading -> "Failed to initialize battery read"
+                            is IOFailed.CharacteristicReadingFailed -> "Failed to read the battery"
+                            else -> "Error occurred: $it"
+                        }
+                    AlertDialog.Builder(this).setMessage(message).show()
+                })
+            .disposeOnState(ActivityState.DESTROY, this)
+        //This is where we receive the button state of one of the ESP buttons in a notification
+        states
+            .switchMap { state ->
+                when (state) {
+                    States.Connecting -> Observable.empty()
+                    is States.Connected -> states.map { state.gatt }
+                }
+            }
+            .switchMap { gatt ->
+                (
+                    if (gatt.source.services.isEmpty()) gatt.discoverServices()
+                    else  Maybe.just(gatt.source.services)
+                ).toObservable()
+                .flatMap {
+                val characteristic = gatt.source.findCharacteristic(UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"))
+                gatt.enableNotification(characteristic!!)
+                    .flatMapPublisher { gatt.listenChanges(characteristic) }
+                    .toObservable()
+                }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                {
+                    espButton1.isChecked = it[0].toInt() == 0
+                },
+                {
+                    val message =
+                        when (it) {
+                            is BluetoothIsTurnedOff -> "Bluetooth is turned off"
+                            is DeviceDisconnected.CharacteristicReadDeviceDisconnected -> "Device disconnected while reading battery"
+                            is CannotInitialize.CannotInitializeCharacteristicReading -> "Failed to initialize battery read"
+                            is IOFailed.CharacteristicReadingFailed -> "Failed to read the battery"
+                            else -> "Error occurred: $it"
+                        }
+                    AlertDialog.Builder(this).setMessage(message).show()
+                })
+            .disposeOnState(ActivityState.DESTROY, this)
+        //This is where we receive the button state of the other one of our ESP buttons via a notification
+        states
+            .switchMap { state ->
+                when (state) {
+                    States.Connecting -> Observable.empty()
+                    is States.Connected -> states.map { state.gatt }
+                }
+            }
+            .switchMap { gatt ->
+                (
+                    if (gatt.source.services.isEmpty()) gatt.discoverServices()
+                    else  Maybe.just(gatt.source.services)
+                ).toObservable()
+                .flatMap {
+                    val characteristic =
+                    gatt.source.findCharacteristic(UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E"))
+                    gatt.enableNotification(characteristic!!)
+                        .flatMapPublisher { gatt.listenChanges(characteristic) }
+                        .toObservable()
+                }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                {
+                    espButton2.isChecked = it[0].toInt() == 0
+                },
+                {
+                    val message =
+                        when (it) {
+                            is BluetoothIsTurnedOff -> "Bluetooth is turned off"
+                            is DeviceDisconnected.CharacteristicReadDeviceDisconnected -> "Device disconnected while reading battery"
+                            is CannotInitialize.CannotInitializeCharacteristicReading -> "Failed to initialize battery read"
+                            is IOFailed.CharacteristicReadingFailed -> "Failed to read the battery"
+                            else -> "Error occurred: $it"
+                        }
+                    AlertDialog.Builder(this).setMessage(message).show()
+                })
+            .disposeOnState(ActivityState.DESTROY, this)
+        //Button for reading large data
+        states
+            .switchMap { state ->
+                when (state) {
+                    States.Connecting -> Observable.empty()
+                    is States.Connected -> testButton.clicks().map { state.gatt }
+                }
+            }
+            .switchMapMaybe { gatt ->
+                currTime = System.currentTimeMillis()
+                (
+                    if (gatt.source.services.isEmpty()) gatt.discoverServices()
+                    else Maybe.just(gatt.source.services)
+                )
+                .flatMap {
+                    gatt.read(gatt.source.findCharacteristic(UUID.fromString("6E400005-B5A3-F393-E0A9-E50E24DCCA9E"))!!)
+                }
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe{
+                val timed = System.currentTimeMillis() - currTime
+                var message = it.decodeToString()
+                message = message + "\n" + timed.toString()
+
+                AlertDialog.Builder(this).setMessage(message).show()
             }
             .disposeOnState(ActivityState.DESTROY, this)
     }
@@ -126,3 +293,4 @@ class DeviceActivity : AppCompatActivity() {
         private const val DEVICE_EXTRA = "DEVICE_EXTRA"
     }
 }
+

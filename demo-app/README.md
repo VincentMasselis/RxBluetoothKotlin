@@ -1,0 +1,1 @@
+Test app for Android. Contains buttons for turning the light on the ESP32 (running the demo app ESP companion) on or off, a picture showing the state of the LED, and a button for exchanging larger pieces of data. All application protocol stuff is in DeviceActivity.kt.

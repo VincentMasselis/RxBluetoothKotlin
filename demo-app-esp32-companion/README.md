@@ -1,0 +1,1 @@
+Companion to the demo-app for the ESP32. Written in Android IDE. Attach button between pin GPIO25 and ground, and pin GPIO26 and ground, and a LED with a 220 Ohm resistor on pin GPIO33. Uses standard ESP32 BLE libraries.
