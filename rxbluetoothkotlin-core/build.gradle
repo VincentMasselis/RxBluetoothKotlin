@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'kotlin-android'
+    id 'org.jetbrains.dokka'
 }
 
 android {
@@ -41,8 +42,18 @@ dependencies {
     api 'no.nordicsemi.android.support.v18:scanner:1.4.3'
 }
 
-ext {
-    artifactId = 'rxbluetoothkotlin-core'
+dokkaHtml.configure {
+    dokkaSourceSets {
+        named("main") {
+            noAndroidSdkLink.set(false)
+        }
+    }
 }
 
-//apply from: '../deploy.gradle'
+ext {
+    PUBLISH_GROUP_ID = 'com.masselis.rxbluetoothkotlin'
+    PUBLISH_VERSION = '3.0.0'
+    PUBLISH_ARTIFACT_ID = 'rxbluetoothkotlin-core'
+}
+
+apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"
