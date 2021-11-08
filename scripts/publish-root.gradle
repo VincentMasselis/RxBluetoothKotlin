@@ -14,8 +14,8 @@ if (secretPropsFile.exists()) {
     p.each { name, value -> ext[name] = value }
 } else {
     // Use system environment variables
-    ext["ossrhUsername"] = System.getenv('JIRA_OSSRH_PASSWORD')
-    ext["ossrhPassword"] = System.getenv('JIRA_OSSRH_USERNAME')
+    ext["ossrhUsername"] = System.getenv('JIRA_OSSRH_USERNAME')
+    ext["ossrhPassword"] = System.getenv('JIRA_OSSRH_PASSWORD')
     ext["sonatypeStagingProfileId"] = System.getenv('SONATYPE_STAGING_PROFILE_ID')
     ext["signing.keyId"] = System.getenv('SIGNIN_KEY_ID')
     ext["signing.password"] = System.getenv('SIGNIN_KEY_PASSWORD')
