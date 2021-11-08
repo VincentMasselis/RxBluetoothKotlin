@@ -1,5 +1,6 @@
 package com.masselis.rxbluetoothkotlin
 
+import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -49,6 +50,7 @@ private const val TAG = "BluetoothManager+rx"
  * @see [android.bluetooth.le.BluetoothLeScanner.startScan]
  * @see [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults]
  */
+@SuppressLint("SoonBlockedPrivateApi")
 public fun BluetoothManager.rxScan(
     scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,
     flushEvery: Pair<Long, TimeUnit>? = null,
