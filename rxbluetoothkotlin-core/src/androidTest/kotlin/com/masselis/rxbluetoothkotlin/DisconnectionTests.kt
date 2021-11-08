@@ -1,7 +1,6 @@
 package com.masselis.rxbluetoothkotlin
 
 import android.Manifest
-import android.bluetooth.BluetoothDevice
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import io.reactivex.rxjava3.core.Completable
@@ -14,7 +13,7 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 internal class DisconnectionTests {
 
-    private lateinit var device: BluetoothDevice
+    private lateinit var gatt: RxBluetoothGatt
 
     @Rule
     @JvmField
@@ -26,28 +25,24 @@ internal class DisconnectionTests {
     @Before
     fun setup() {
         rebootBluetooth()
-        device = bluetoothManager
-            .rxScan()
+        gatt = bluetoothManager
+            .rxScan(logger = LogcatLogger)
             .filter { it.device.name == DEVICE_NAME }
             .firstOrError()
             .timeout(10, TimeUnit.SECONDS)
+            .flatMap { it.device.connectRxGatt(logger = LogcatLogger) }
             .blockingGet()
-            .device
     }
 
     /** Disconnects right after a connection is done */
     @Test
     fun disconnectionImmediatelyTest() {
-        device.connectRxGatt(logger = LogcatLogger)
-            .flatMapMaybe { gatt ->
-                gatt.disconnect().subscribe()
-                gatt.whenConnectionIsReady().map { gatt }
-            }
+        gatt.disconnect().subscribe()
+        gatt.whenConnectionIsReady()
             .delay(600, TimeUnit.MILLISECONDS)
-            .flatMap { gatt ->
+            .flatMap {
                 gatt.discoverServices()
                     .doOnSubscribe { LogcatLogger.v(TAG, "Subscribing to fetch services") }
-                    .map { gatt }
             }
             .doOnError { LogcatLogger.e(TAG, "Failed, reason :$it") }
             .test()
@@ -58,17 +53,13 @@ internal class DisconnectionTests {
     /** Disconnects 10 millis after a connection */
     @Test
     fun disconnection10msTest() {
-        device.connectRxGatt(logger = LogcatLogger)
-            .flatMapMaybe { gatt ->
-                Completable.timer(10, TimeUnit.MILLISECONDS)
-                    .subscribe { gatt.disconnect().subscribe() }
-                gatt.whenConnectionIsReady().map { gatt }
-            }
+        Completable.timer(10, TimeUnit.MILLISECONDS)
+            .subscribe { gatt.disconnect().subscribe() }
+        gatt.whenConnectionIsReady()
             .delay(600, TimeUnit.MILLISECONDS)
-            .flatMap { gatt ->
+            .flatMap {
                 gatt.discoverServices()
                     .doOnSubscribe { LogcatLogger.v(TAG, "Subscribing to fetch services") }
-                    .map { gatt }
             }
             .doOnError { LogcatLogger.e(TAG, "Failed, reason :$it") }
             .test()
@@ -79,18 +70,14 @@ internal class DisconnectionTests {
     /** Disconnects 100 millis after a connection */
     @Test
     fun disconnection100msTest() {
-        device.connectRxGatt(logger = LogcatLogger)
-            .flatMapMaybe { gatt ->
-                Completable.timer(100, TimeUnit.MILLISECONDS)
-                    .subscribe { gatt.disconnect().subscribe() }
-                gatt.whenConnectionIsReady().map { gatt }
-            }
-            .flatMap { gatt ->
+        Completable.timer(100, TimeUnit.MILLISECONDS)
+            .subscribe { gatt.disconnect().subscribe() }
+        gatt.whenConnectionIsReady()
+            .flatMap {
                 gatt.discoverServices()
                     .doOnSubscribe { LogcatLogger.v(TAG, "Subscribing to fetch services") }
-                    .map { gatt }
             }
-            .flatMap { it.listenDisconnection().toMaybe<RxBluetoothGatt>() }
+            .flatMap { gatt.listenDisconnection().toMaybe<RxBluetoothGatt>() }
             .doOnError { LogcatLogger.e(TAG, "Failed, reason :$it") }
             .test()
             .awaitDone(20, TimeUnit.SECONDS)
@@ -100,35 +87,30 @@ internal class DisconnectionTests {
     /** Disconnects 5 second after a connection */
     @Test
     fun disconnection5sTest() {
-        device.connectRxGatt(logger = LogcatLogger)
-            .flatMapMaybe { gatt ->
-                Completable.timer(5, TimeUnit.SECONDS)
-                    .subscribe { gatt.disconnect().subscribe() }
-                gatt.whenConnectionIsReady().map { gatt }
-            }
+        Completable.timer(5, TimeUnit.SECONDS)
+            .subscribe { gatt.disconnect().subscribe() }
+        gatt.whenConnectionIsReady()
             .delay(600, TimeUnit.MILLISECONDS)
-            .flatMap { gatt ->
+            .flatMap {
                 gatt.discoverServices()
                     .doOnSubscribe { LogcatLogger.v(TAG, "Subscribing to fetch services") }
-                    .map { gatt }
             }
             .flatMapCompletable {
-                it.listenDisconnection()
+                gatt.listenDisconnection()
                     .doOnSubscribe { LogcatLogger.v(TAG, "Listening for disconnection") }
             }
             .doOnError { LogcatLogger.e(TAG, "Failed, reason :$it") }
             .test()
-            .awaitDone(20, TimeUnit.MILLISECONDS)
+            .awaitDone(20, TimeUnit.SECONDS)
             .assertComplete()
     }
 
     /** Disconnects when reading the services */
     @Test
     fun disconnectionDiscoverServicesTest() {
-        device.connectRxGatt(logger = LogcatLogger)
-            .flatMapMaybe { gatt -> gatt.whenConnectionIsReady().map { gatt } }
+        gatt.whenConnectionIsReady()
             .delay(600, TimeUnit.MILLISECONDS)
-            .flatMap { gatt ->
+            .flatMap {
                 gatt.discoverServices()
                     .doOnSubscribe {
                         LogcatLogger.v(TAG, "Subscribing to fetch services")

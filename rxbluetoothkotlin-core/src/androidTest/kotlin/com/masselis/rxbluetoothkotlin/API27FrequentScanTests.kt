@@ -1,6 +1,5 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,10 +19,7 @@ internal class API27FrequentScanTests {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        ACCESS_FINE_LOCATION,
-        ACCESS_BACKGROUND_LOCATION
-    )
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(ACCESS_FINE_LOCATION)
 
     @Before
     fun setup() {

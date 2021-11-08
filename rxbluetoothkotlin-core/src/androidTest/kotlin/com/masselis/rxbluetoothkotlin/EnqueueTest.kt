@@ -41,25 +41,22 @@ internal class EnqueueTest {
                 Maybes
                     .zip(
                         gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
-                            .doOnSuccess { LogcatLogger.v(TAG, "currentTime1 : ${it[0].toInt()}") },
+                            .doOnSuccess {
+                                LogcatLogger.v(TAG, "Current second : ${it[6].toInt()}")
+                            },
                         gatt.enableNotification(
-                            gatt.source.findCharacteristic(
-                                HEART_RATE_CHARACTERISTIC
-                            )!!
+                            gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!
                         ).doOnSuccess { LogcatLogger.v(TAG, "Enabled notification") },
                         gatt.readRemoteRssi()
                             .doOnSuccess { LogcatLogger.v(TAG, "rssi $it") }
                     )
-                    .map { gatt }
             }
             .doOnComplete { throw IllegalStateException("Should not complete here") }
             .doOnError { LogcatLogger.e(TAG, "Failed, reason :$it") }
             .test()
             .awaitDone(20, TimeUnit.SECONDS)
             .assertValueCount(1)
-            .values()
-            .first()
-            .disconnect()
+        gatt.disconnect()
             .subscribe()
     }
 
@@ -81,15 +78,10 @@ internal class EnqueueTest {
                             .doOnSubscribe { LogcatLogger.v(TAG, "currentTime1 subscription") }
                             .doOnComplete { LogcatLogger.v(TAG, "currentTime1 completed") },
                         gatt.enableNotification(
-                            gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!
-                        )
-                            .doOnSubscribe {
-                                LogcatLogger.v(
-                                    TAG,
-                                    "Enabled notification subscription"
-                                )
-                            }
-                            .doOnComplete { LogcatLogger.v(TAG, "Enabled notification completed") },
+                            gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!
+                        ).doOnSubscribe {
+                            LogcatLogger.v(TAG, "Enabled notification subscription")
+                        }.doOnComplete { LogcatLogger.v(TAG, "Enabled notification completed") },
                         gatt.readRemoteRssi()
                             .doOnSubscribe { LogcatLogger.v(TAG, "RSSI subscription") }
                             .doOnComplete { LogcatLogger.v(TAG, "RSSI completed") }

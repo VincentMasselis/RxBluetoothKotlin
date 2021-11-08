@@ -8,10 +8,11 @@ import android.util.Log
 import com.masselis.rxbluetoothkotlin.internal.appContext
 import com.masselis.rxbluetoothkotlin.internal.observe
 import io.reactivex.rxjava3.core.Observable
+import java.lang.Thread.sleep
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-internal const val DEVICE_NAME = "MOCK"
+internal const val DEVICE_NAME = "Pixel 6 Pro"
 
 internal val bluetoothManager =
     appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -39,12 +40,16 @@ internal fun rebootBluetooth() {
     bluetoothManager.adapter.enable()
     bluetoothStateObs.filter { it == BluetoothAdapter.STATE_ON }.firstOrError().test()
         .await(5, TimeUnit.SECONDS)
+    while (bluetoothManager.adapter.enable().not()) {
+        sleep(100)
+    }
+    sleep(3_000)
 }
 
 internal fun connect(): RxBluetoothGatt {
     lateinit var gatt: RxBluetoothGatt
     bluetoothManager
-        .rxScan()
+        .rxScan(logger = LogcatLogger)
         .filter { it.device.name == DEVICE_NAME }
         .firstOrError()
         .timeout(10, TimeUnit.SECONDS)
@@ -84,10 +89,5 @@ internal object LogcatLogger : Logger {
 
 }
 
-// Read capability but notify takes a long to emit
-internal val CURRENT_TIME_CHARACTERISTIC: UUID =
-    UUID.fromString("00002A2B-0000-1000-8000-00805F9B34FB")
-
-// Unable to read but notify takes a few seconds to emit
-internal val HEART_RATE_CHARACTERISTIC: UUID =
-    UUID.fromString("00002A37-0000-1000-8000-00805F9B34FB")
+internal val CURRENT_TIME_CHARACTERISTIC: UUID = UUID
+    .fromString("00002A2B-0000-1000-8000-00805F9B34FB")

@@ -34,11 +34,11 @@ internal class ListenChangeTest {
     /** While listening characteristic, plug in the device to update the battery percent */
     @Test
     fun listenChangeTest() {
-        gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             }
-            .doOnNext { Log.v(TAG, "battery1 : ${it[0].toInt()}") }
+            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .firstOrError()
             .test()
@@ -50,11 +50,11 @@ internal class ListenChangeTest {
     fun listenChangeDisconnectionTest() {
         Completable.timer(1, TimeUnit.SECONDS)
             .subscribe { gatt.disconnect().subscribe() }
-        gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             }
-            .doOnNext { Log.v(TAG, "currentTime1 : ${it[0].toInt()}") }
+            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .test()
             .awaitDone(20, TimeUnit.SECONDS)
@@ -64,11 +64,11 @@ internal class ListenChangeTest {
     /** While listening characteristic, turn off the device (reset or removing the battery should be enough) */
     @Test
     fun listenChangeUnexpectedDisconnectionTest() {
-        gatt.enableNotification(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(HEART_RATE_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
             }
-            .doOnNext { Log.v(TAG, "currentTime1 : ${it[0].toInt()}") }
+            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .test()
             .awaitDone(20, TimeUnit.SECONDS)
