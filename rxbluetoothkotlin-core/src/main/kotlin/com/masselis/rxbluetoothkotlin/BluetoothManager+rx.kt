@@ -49,7 +49,7 @@ private const val TAG = "BluetoothManager+rx"
  * @see [android.bluetooth.le.BluetoothLeScanner.startScan]
  * @see [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults]
  */
-fun BluetoothManager.rxScan(
+public fun BluetoothManager.rxScan(
     scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,
     flushEvery: Pair<Long, TimeUnit>? = null,
     logger: Logger? = null

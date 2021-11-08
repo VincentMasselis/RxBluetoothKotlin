@@ -9,7 +9,7 @@ import com.masselis.rxbluetoothkotlin.*
 import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Observable
 
-abstract class SimpleRxBluetoothGattCallback(private val concrete: RxBluetoothGatt.Callback) : RxBluetoothGatt.Callback {
+public abstract class SimpleRxBluetoothGattCallback(private val concrete: RxBluetoothGatt.Callback) : RxBluetoothGatt.Callback {
     override val source: BluetoothGattCallback = concrete.source
     override val onConnectionState: Observable<ConnectionState> = concrete.onConnectionState
     override val onRemoteRssiRead: Observable<RSSI> = concrete.onRemoteRssiRead
@@ -27,5 +27,5 @@ abstract class SimpleRxBluetoothGattCallback(private val concrete: RxBluetoothGa
     override val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>> = concrete.onDescriptorWrite
     override val onReliableWriteCompleted: Observable<Status> = concrete.onReliableWriteCompleted
     override fun livingConnection(): Observable<Unit> = concrete.livingConnection()
-    override fun disconnection() = concrete.disconnection()
+    override fun disconnection(): Unit = concrete.disconnection()
 }

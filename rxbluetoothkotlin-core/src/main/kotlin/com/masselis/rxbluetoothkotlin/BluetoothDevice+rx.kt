@@ -34,64 +34,72 @@ private const val TAG = "BluetoothDevice+rx"
  * @see BluetoothDevice.connectGatt
  */
 @Suppress("UNCHECKED_CAST")
-fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
+public fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
     logger: Logger? = null,
     rxCallbackBuilder: () -> T = {
-        RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete } as T
+        RxBluetoothGattCallbackImpl().let { concrete ->
+            logger?.let { CallbackLogger(it, concrete) } ?: concrete
+        } as T
     },
     connectGattWrapper: (Context, BluetoothGattCallback) -> BluetoothGatt? = { context, callback ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(
+            context,
+            false,
+            callback,
+            BluetoothDevice.TRANSPORT_LE
+        )
         else connectGatt(context, false, callback)
     },
     rxGattBuilder: (BluetoothGatt, T) -> E = { gatt, callbacks ->
         RxBluetoothGattImpl(logger, gatt, callbacks) as E
     }
-): Single<E> = Single
-    .fromCallable {
+): Single<E> = Single.fromCallable {
 
-        if (hasPermissions().not()) {
-            logger?.v(TAG, "BLE require ACCESS_FINE_LOCATION permission")
-            throw NeedLocationPermission()
-        }
-
-        val btState =
-            if ((appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
-                BluetoothAdapter.STATE_ON
-            else
-                BluetoothAdapter.STATE_OFF
-
-        if (btState == BluetoothAdapter.STATE_OFF) {
-            logger?.v(TAG, "Bluetooth is off")
-            throw BluetoothIsTurnedOff()
-        }
-
-        val callbacks = rxCallbackBuilder()
-
-        val gatt = connectGattWrapper(appContext, callbacks.source)
-
-        if (gatt == null) {
-            logger?.v(TAG, "connectGatt method returned null")
-            throw NullBluetoothGatt()
-        }
-
-        return@fromCallable rxGattBuilder(gatt, callbacks)
+    if (hasPermissions().not()) {
+        logger?.v(TAG, "BLE require ACCESS_FINE_LOCATION permission")
+        throw NeedLocationPermission()
     }
-    .subscribeOn(AndroidSchedulers.mainThread())
+
+    val btState =
+        if ((appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+            BluetoothAdapter.STATE_ON
+        else
+            BluetoothAdapter.STATE_OFF
+
+    if (btState == BluetoothAdapter.STATE_OFF) {
+        logger?.v(TAG, "Bluetooth is off")
+        throw BluetoothIsTurnedOff()
+    }
+
+    val callbacks = rxCallbackBuilder()
+
+    val gatt = connectGattWrapper(appContext, callbacks.source)
+
+    if (gatt == null) {
+        logger?.v(TAG, "connectGatt method returned null")
+        throw NullBluetoothGatt()
+    }
+
+    return@fromCallable rxGattBuilder(gatt, callbacks)
+}.subscribeOn(AndroidSchedulers.mainThread())
 
 /** @see connectTypedRxGatt */
-fun BluetoothDevice.connectRxGatt(
+public fun BluetoothDevice.connectRxGatt(
     logger: Logger? = null,
     rxCallbackBuilder: (() -> RxBluetoothGatt.Callback) = {
-        RxBluetoothGattCallbackImpl().let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete }
+        RxBluetoothGattCallbackImpl()
+            .let { concrete -> logger?.let { CallbackLogger(it, concrete) } ?: concrete }
     },
     connectGattWrapper: (Context, BluetoothGattCallback) -> BluetoothGatt? = { context, callback ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
-        else connectGatt(context, false, callback)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        else
+            connectGatt(context, false, callback)
     },
     rxGattBuilder: ((BluetoothGatt, RxBluetoothGatt.Callback) -> RxBluetoothGatt) = { gatt, callbacks ->
         RxBluetoothGattImpl(logger, gatt, callbacks)
     }
-) =
+): Single<RxBluetoothGatt> =
     connectTypedRxGatt(
         logger,
         rxCallbackBuilder,

@@ -17,22 +17,27 @@ import kotlin.concurrent.withLock
  * Default wrapper which convert system's callback [BluetoothGattCallback] to [RxBluetoothGatt.Callback] and keeps the current connection status.
  */
 @SuppressLint("CheckResult")
-class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Callback {
+public class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Callback {
 
     // ---------------- Converts methods from `BluetoothGattCallback` to `RxBluetoothGatt.Callback`'s observables.
 
-    override val onConnectionState = PublishSubject.create<ConnectionState>()!!
-    override val onRemoteRssiRead = PublishSubject.create<RSSI>()!!
-    override val onServicesDiscovered = PublishSubject.create<Status>()!!
-    override val onMtuChanged = PublishSubject.create<MTU>()!!
-    override val onPhyRead = PublishSubject.create<PHY>()!!
-    override val onPhyUpdate = PublishSubject.create<PHY>()!!
-    override val onCharacteristicRead = PublishSubject.create<Pair<BluetoothGattCharacteristic, Status>>()!!
-    override val onCharacteristicWrite = PublishSubject.create<Pair<BluetoothGattCharacteristic, Status>>()!!
-    override val onCharacteristicChanged = PublishProcessor.create<BluetoothGattCharacteristic>()!!
-    override val onDescriptorRead = PublishSubject.create<Pair<BluetoothGattDescriptor, Status>>()!!
-    override val onDescriptorWrite = PublishSubject.create<Pair<BluetoothGattDescriptor, Status>>()!!
-    override val onReliableWriteCompleted = PublishSubject.create<Status>()!!
+    override val onConnectionState: PublishSubject<ConnectionState> = PublishSubject.create()
+    override val onRemoteRssiRead: PublishSubject<RSSI> = PublishSubject.create()
+    override val onServicesDiscovered: PublishSubject<Status> = PublishSubject.create()
+    override val onMtuChanged: PublishSubject<MTU> = PublishSubject.create()
+    override val onPhyRead: PublishSubject<PHY> = PublishSubject.create()
+    override val onPhyUpdate: PublishSubject<PHY> = PublishSubject.create()
+    override val onCharacteristicRead: PublishSubject<Pair<BluetoothGattCharacteristic, Status>> =
+        PublishSubject.create()
+    override val onCharacteristicWrite: PublishSubject<Pair<BluetoothGattCharacteristic, Status>> =
+        PublishSubject.create()
+    override val onCharacteristicChanged: PublishProcessor<BluetoothGattCharacteristic> =
+        PublishProcessor.create()
+    override val onDescriptorRead: PublishSubject<Pair<BluetoothGattDescriptor, Status>> =
+        PublishSubject.create()
+    override val onDescriptorWrite: PublishSubject<Pair<BluetoothGattDescriptor, Status>> =
+        PublishSubject.create()
+    override val onReliableWriteCompleted: PublishSubject<Status> = PublishSubject.create()
 
     override val source: BluetoothGattCallback = this
 
@@ -115,8 +120,8 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
         data class Lost(val reason: Status?) : ConnectionEvent()
     }
 
-    private val stateSubject =
-        BehaviorSubject.createDefault<ConnectionEvent>(ConnectionEvent.Initializing)
+    private val stateSubject = BehaviorSubject
+        .createDefault<ConnectionEvent>(ConnectionEvent.Initializing)
 
     // ---------------- System inputs about the current connection, updates the stateSubject if a disconnection is detected
 
@@ -236,7 +241,7 @@ class RxBluetoothGattCallbackImpl : BluetoothGattCallback(), RxBluetoothGatt.Cal
         }
 
     private val disconnectLock = ReentrantLock()
-    override fun disconnection() = disconnectLock.withLock {
+    override fun disconnection(): Unit = disconnectLock.withLock {
         if (stateSubject.value !is ConnectionEvent.Lost)
             stateSubject.onNext(ConnectionEvent.Lost(null))
     }

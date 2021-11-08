@@ -8,12 +8,9 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.masselis.rxbluetoothkotlin.ConnectionPHY
 import com.masselis.rxbluetoothkotlin.RxBluetoothGatt
-import io.reactivex.rxjava3.core.Flowable
-import io.reactivex.rxjava3.core.FlowableTransformer
-import io.reactivex.rxjava3.core.Maybe
-import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.*
 
-abstract class SimpleRxBluetoothGatt(private val concrete: RxBluetoothGatt) : RxBluetoothGatt {
+public abstract class SimpleRxBluetoothGatt(private val concrete: RxBluetoothGatt) : RxBluetoothGatt {
     override val source: BluetoothGatt = concrete.source
     override val callback: RxBluetoothGatt.Callback = concrete.callback
     override fun livingConnection(): Observable<Unit> = concrete.livingConnection()
@@ -50,5 +47,5 @@ abstract class SimpleRxBluetoothGatt(private val concrete: RxBluetoothGatt) : Rx
     override fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray> = concrete.read(descriptor)
     override fun write(descriptor: BluetoothGattDescriptor, value: ByteArray): Maybe<BluetoothGattDescriptor> = concrete.write(descriptor, value)
 
-    override fun disconnect() = concrete.disconnect()
+    override fun disconnect(): Completable = concrete.disconnect()
 }

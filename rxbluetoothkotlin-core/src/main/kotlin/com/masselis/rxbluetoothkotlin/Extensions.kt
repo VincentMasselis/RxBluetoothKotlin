@@ -19,7 +19,7 @@ import java.util.*
  * @see RxBluetoothGatt.livingConnection
  */
 @CheckReturnValue
-fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().firstElement()
+public fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().firstElement()
 
 /**
  * Start a disconnection and completes when it's done.
@@ -37,7 +37,7 @@ fun RxBluetoothGatt.whenConnectionIsReady(): Maybe<Unit> = livingConnection().fi
     "disconnect method extension is not allowed anymore, consider using the method from the RxBluetoothGatt interface directly",
     ReplaceWith("RxBluetoothGatt.disconnect", "com.vincentmasselis.rxbluetoothkotlin.RxBluetoothGatt")
 )
-fun RxBluetoothGatt.disconnect(): Completable = disconnect()
+public fun RxBluetoothGatt.disconnect(): Completable = disconnect()
 
 /**
  * Listen [BluetoothGatt] disconnections.
@@ -51,14 +51,14 @@ fun RxBluetoothGatt.disconnect(): Completable = disconnect()
  * @see RxBluetoothGatt.livingConnection
  */
 @CheckReturnValue
-fun RxBluetoothGatt.listenDisconnection(): Completable = livingConnection().ignoreElements()
+public fun RxBluetoothGatt.listenDisconnection(): Completable = livingConnection().ignoreElements()
 
 /**
  * Returns a [BluetoothGattCharacteristic] if [this] contains a [BluetoothGattCharacteristic]
  * matching with the filled [uuid]
  */
 @Throws(LookingForCharacteristicButServicesNotDiscovered::class)
-fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
+public fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
     if (services.isEmpty())
         throw LookingForCharacteristicButServicesNotDiscovered(device, uuid)
     else {
@@ -74,4 +74,4 @@ fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
  * @see RxBluetoothGatt.listenChanges
  * @see BluetoothGattCharacteristic.PROPERTY_INDICATE
  */
-fun BluetoothGattCharacteristic.hasIndication() = properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0
+public fun BluetoothGattCharacteristic.hasIndication(): Boolean = properties and BluetoothGattCharacteristic.PROPERTY_INDICATE != 0

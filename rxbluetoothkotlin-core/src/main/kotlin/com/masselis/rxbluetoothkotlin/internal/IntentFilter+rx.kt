@@ -6,7 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import io.reactivex.rxjava3.core.Observable
 
-fun IntentFilter.observe(): Observable<Intent> = Observable.create { downStream ->
+internal fun IntentFilter.observe(): Observable<Intent> = Observable.create { downStream ->
     val receiver = object : BroadcastReceiver() {
         override fun onReceive(currentContext: Context, intent: Intent) {
             downStream.onNext(intent)

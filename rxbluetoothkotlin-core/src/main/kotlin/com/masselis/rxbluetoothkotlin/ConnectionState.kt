@@ -9,4 +9,4 @@ import android.bluetooth.BluetoothProfile
  *
  * @see android.bluetooth.BluetoothGattCallback.onConnectionStateChange
  */
-data class ConnectionState(val state: Int, val status: Status)
+public data class ConnectionState(val state: Int, val status: Status)

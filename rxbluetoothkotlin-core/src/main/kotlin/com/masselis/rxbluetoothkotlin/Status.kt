@@ -9,4 +9,4 @@ package com.masselis.rxbluetoothkotlin
  *
  * @see android.bluetooth.BluetoothGattCallback
  */
-typealias Status = Int
+public typealias Status = Int

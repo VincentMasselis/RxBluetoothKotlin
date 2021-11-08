@@ -17,11 +17,11 @@ import io.reactivex.rxjava3.core.*
  *
  * The default implementation of [RxBluetoothGatt] is [RxBluetoothGattImpl].
  */
-interface RxBluetoothGatt {
+public interface RxBluetoothGatt {
 
-    val source: BluetoothGatt
+    public val source: BluetoothGatt
 
-    val callback: Callback
+    public val callback: Callback
 
     /**
      * Wrapper of a [BluetoothGattCallback] but every of the method is replaced by [Observable]s. Every of the [Observable]s should be called when a method from
@@ -31,37 +31,37 @@ interface RxBluetoothGatt {
      *
      * @see RxBluetoothGattCallbackImpl
      */
-    interface Callback {
+    public interface Callback {
 
         /** Original callback instance used by the system */
-        val source: BluetoothGattCallback
+        public val source: BluetoothGattCallback
 
-        val onConnectionState: Observable<ConnectionState>
+        public val onConnectionState: Observable<ConnectionState>
 
-        val onRemoteRssiRead: Observable<RSSI>
+        public val onRemoteRssiRead: Observable<RSSI>
 
-        val onServicesDiscovered: Observable<Status>
+        public val onServicesDiscovered: Observable<Status>
 
-        val onMtuChanged: Observable<MTU>
+        public val onMtuChanged: Observable<MTU>
 
-        val onPhyRead: Observable<PHY>
+        public val onPhyRead: Observable<PHY>
 
-        val onPhyUpdate: Observable<PHY>
+        public val onPhyUpdate: Observable<PHY>
 
-        val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        public val onCharacteristicRead: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
+        public val onCharacteristicWrite: Observable<Pair<BluetoothGattCharacteristic, Status>>
 
-        val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
+        public val onCharacteristicChanged: Flowable<BluetoothGattCharacteristic>
 
-        val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
+        public val onDescriptorRead: Observable<Pair<BluetoothGattDescriptor, Status>>
 
-        val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
+        public val onDescriptorWrite: Observable<Pair<BluetoothGattDescriptor, Status>>
 
-        val onReliableWriteCompleted: Observable<Status>
+        public val onReliableWriteCompleted: Observable<Status>
 
         /** Fired by [livingConnection] when the connection with the sensor is lost */
-        class StateDisconnected(val status: Int?) : Throwable()
+        public class StateDisconnected(public val status: Int?) : Throwable()
 
         /**
          * [Observable] of [Unit] which emit a unique [Unit] value when the connection handled by [source] can handle I/O operations.
@@ -78,10 +78,10 @@ interface RxBluetoothGatt {
          * onError with [BluetoothIsTurnedOff] or [StateDisconnected] when a unexpected disconnection occurs, [StateDisconnected.status] is null if the connection were expected.
          */
         @CheckReturnValue
-        fun livingConnection(): Observable<Unit>
+        public fun livingConnection(): Observable<Unit>
 
         /** Puts the [Callback] into a disconnected state like [onConnectionState] would do if the disconnection was reported by the system */
-        fun disconnection()
+        public fun disconnection()
     }
 
 
@@ -98,7 +98,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onConnectionStateChange
      */
     @CheckReturnValue
-    fun livingConnection(): Observable<Unit>
+    public fun livingConnection(): Observable<Unit>
 
     /**
      * Reactive way to read the remote [RSSI] from the [source].
@@ -116,7 +116,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onReadRemoteRssi
      */
     @CheckReturnValue
-    fun readRemoteRssi(): Maybe<Int>
+    public fun readRemoteRssi(): Maybe<Int>
 
     /**
      * Reactive way to fetch a [List] of [BluetoothGattService] from the [source].
@@ -134,7 +134,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onServicesDiscovered
      */
     @CheckReturnValue
-    fun discoverServices(): Maybe<List<BluetoothGattService>>
+    public fun discoverServices(): Maybe<List<BluetoothGattService>>
 
     /**
      * Reactive way to read MTU from [source]
@@ -153,7 +153,7 @@ interface RxBluetoothGatt {
      */
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     @CheckReturnValue
-    fun requestMtu(mtu: Int): Maybe<Int>
+    public fun requestMtu(mtu: Int): Maybe<Int>
 
     /**
      * Reactive way to read PHY from [source]
@@ -174,7 +174,7 @@ interface RxBluetoothGatt {
      */
     @RequiresApi(Build.VERSION_CODES.O)
     @CheckReturnValue
-    fun readPhy(): Maybe<ConnectionPHY>
+    public fun readPhy(): Maybe<ConnectionPHY>
 
     /**
      * Reactive way to set preferred PHY to [source]
@@ -195,7 +195,7 @@ interface RxBluetoothGatt {
      */
     @RequiresApi(Build.VERSION_CODES.O)
     @CheckReturnValue
-    fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY>
+    public fun setPreferredPhy(connectionPhy: ConnectionPHY, phyOptions: Int): Maybe<ConnectionPHY>
 
     /**
      * Reactive way to read a value from [characteristic].
@@ -213,7 +213,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onCharacteristicRead
      */
     @CheckReturnValue
-    fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray>
+    public fun read(characteristic: BluetoothGattCharacteristic): Maybe<ByteArray>
 
     /**
      * Reactive way to write a [value] into a [characteristic].
@@ -231,7 +231,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onCharacteristicWrite
      */
     @CheckReturnValue
-    fun write(
+    public fun write(
         characteristic: BluetoothGattCharacteristic,
         value: ByteArray
     ): Maybe<BluetoothGattCharacteristic>
@@ -253,7 +253,7 @@ interface RxBluetoothGatt {
      * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
      */
     @CheckReturnValue
-    fun enableNotification(
+    public fun enableNotification(
         characteristic: BluetoothGattCharacteristic,
         indication: Boolean = false,
         checkIfAlreadyEnabled: Boolean = true
@@ -273,7 +273,7 @@ interface RxBluetoothGatt {
      * [CannotInitialize.CannotInitializeCharacteristicNotification], [DescriptorNotFound] and every error from [write] method (the one used to write on a descriptor)
      */
     @CheckReturnValue
-    fun disableNotification(
+    public fun disableNotification(
         characteristic: BluetoothGattCharacteristic,
         checkIfAlreadyDisabled: Boolean = true
     ): Maybe<BluetoothGattCharacteristic>
@@ -295,7 +295,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onCharacteristicChanged
      */
     @CheckReturnValue
-    fun listenChanges(
+    public fun listenChanges(
         characteristic: BluetoothGattCharacteristic,
         composer: FlowableTransformer<BluetoothGattCharacteristic, BluetoothGattCharacteristic> = FlowableTransformer { it.onBackpressureBuffer() }
     ): Flowable<ByteArray>
@@ -316,7 +316,7 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onDescriptorRead
      */
     @CheckReturnValue
-    fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray>
+    public fun read(descriptor: BluetoothGattDescriptor): Maybe<ByteArray>
 
     /**
      * Reactive way to write a [value] into a [descriptor].
@@ -334,12 +334,15 @@ interface RxBluetoothGatt {
      * @see BluetoothGattCallback.onDescriptorWrite
      */
     @CheckReturnValue
-    fun write(descriptor: BluetoothGattDescriptor, value: ByteArray): Maybe<BluetoothGattDescriptor>
+    public fun write(
+        descriptor: BluetoothGattDescriptor,
+        value: ByteArray
+    ): Maybe<BluetoothGattDescriptor>
 
     /**
      * Disconnects the device. If the device is already disconnected, the last known error is fired again. Fires the same errors than [livingConnection] and also completes if the
      * disconnection was expected.
      */
     @CheckReturnValue
-    fun disconnect(): Completable
+    public fun disconnect(): Completable
 }
