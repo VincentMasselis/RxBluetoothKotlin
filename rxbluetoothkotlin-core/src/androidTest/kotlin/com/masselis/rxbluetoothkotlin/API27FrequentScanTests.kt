@@ -1,11 +1,11 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import io.reactivex.rxjava3.core.Flowable
 import io.reactivex.rxjava3.core.Observable
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -19,7 +19,7 @@ internal class API27FrequentScanTests {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(ACCESS_FINE_LOCATION)
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(*PERMISSIONS)
 
     @Before
     fun setup() {
@@ -34,17 +34,15 @@ internal class API27FrequentScanTests {
             .takeUntil { it == 9L }
             .subscribe {
                 bluetoothManager.rxScan(logger = LogcatLogger)
-                    .takeUntil(Flowable.timer(900, TimeUnit.MILLISECONDS)).test()
+                    .takeUntil(Flowable.timer(900, TimeUnit.MILLISECONDS))
+                    .test()
             }
         sleep(10_000)
         bluetoothManager.rxScan(logger = LogcatLogger)
             .doOnError { LogcatLogger.d(TAG, "Failed, reason :$it") }
             .test()
-            .await()
+            .awaitDone(5, TimeUnit.SECONDS)
             .assertError { it is ScanFailedException && it.status == 6 }
-
-        // Required to reset the amount of simultaneous scans
-        sleep(30_000)
     }
 
     /** Creates 64 simultaneous scans and check that the returned exception is NOT the one computed by BluetoothManager+rx associated to the silent SCAN_FAILED_SCANNING_TOO_FREQUENTLY */
@@ -54,15 +52,19 @@ internal class API27FrequentScanTests {
             .takeUntil { it == 39L }
             .subscribe {
                 bluetoothManager.rxScan(logger = LogcatLogger)
-                    .takeUntil(Flowable.timer(20, TimeUnit.SECONDS)).test()
+                    .takeUntil(Flowable.timer(20, TimeUnit.SECONDS))
+                    .test()
             }
         sleep(10_000)
         bluetoothManager.rxScan(logger = LogcatLogger)
             .doOnError { LogcatLogger.d(TAG, "Failed, reason :$it") }
             .test()
-            .await()
+            .awaitDone(5, TimeUnit.SECONDS)
             .assertError { it is ScanFailedException && it.status != 6 }
+    }
 
+    @After
+    fun release() {
         // Required to reset the amount of the simultaneous scans
         sleep(30_000)
     }

@@ -1,6 +1,5 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.Manifest
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import io.reactivex.rxjava3.core.Completable
@@ -11,6 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.lang.Thread.sleep
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
 
@@ -19,10 +19,7 @@ internal class EnqueueTest {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    )
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(*PERMISSIONS)
 
     private lateinit var gatt: RxBluetoothGatt
 
@@ -40,13 +37,11 @@ internal class EnqueueTest {
             .flatMap { _ ->
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
-                            .doOnSuccess {
-                                LogcatLogger.v(TAG, "Current second : ${it[6].toInt()}")
-                            },
-                        gatt.enableNotification(
-                            gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!
-                        ).doOnSuccess { LogcatLogger.v(TAG, "Enabled notification") },
+                        gatt.read(gatt.source.findCharacteristic(READ_CHAR)!!)
+                            .map { ByteBuffer.wrap(it).short }
+                            .doOnSuccess { LogcatLogger.v(TAG, "Current HR : $it") },
+                        gatt.enableNotification(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
+                            .doOnSuccess { LogcatLogger.v(TAG, "Enabled notification") },
                         gatt.readRemoteRssi()
                             .doOnSuccess { LogcatLogger.v(TAG, "rssi $it") }
                     )
@@ -70,7 +65,7 @@ internal class EnqueueTest {
             .flatMap {
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                        gatt.read(gatt.source.findCharacteristic(READ_CHAR)!!)
                             .doOnSubscribe {
                                 Completable.timer(50, TimeUnit.MILLISECONDS)
                                     .subscribe { gatt.disconnect().subscribe() }
@@ -78,7 +73,7 @@ internal class EnqueueTest {
                             .doOnSubscribe { LogcatLogger.v(TAG, "currentTime1 subscription") }
                             .doOnComplete { LogcatLogger.v(TAG, "currentTime1 completed") },
                         gatt.enableNotification(
-                            gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!
+                            gatt.source.findCharacteristic(NOTIFY_CHAR)!!
                         ).doOnSubscribe {
                             LogcatLogger.v(TAG, "Enabled notification subscription")
                         }.doOnComplete { LogcatLogger.v(TAG, "Enabled notification completed") },
@@ -113,10 +108,10 @@ internal class EnqueueTest {
             .flatMap {
                 Maybes
                     .zip(
-                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                        gatt.read(gatt.source.findCharacteristic(READ_CHAR)!!)
                             .map { 1 }.switchIfEmpty(Maybe.just(0)),
                         gatt.readRemoteRssi().map { 1 }.switchIfEmpty(Maybe.just(0)),
-                        gatt.read(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                        gatt.read(gatt.source.findCharacteristic(READ_CHAR)!!)
                             .map { 1 }.switchIfEmpty(Maybe.just(0))
                     )
                     .doOnSubscribe { LogcatLogger.e(TAG, "I/O Subscription") }

@@ -1,9 +1,12 @@
 package com.masselis.rxbluetoothkotlin
 
+import android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.IntentFilter
+import android.os.Build
 import android.util.Log
 import com.masselis.rxbluetoothkotlin.internal.appContext
 import com.masselis.rxbluetoothkotlin.internal.observe
@@ -37,13 +40,13 @@ internal fun rebootBluetooth() {
     bluetoothManager.adapter.disable()
     bluetoothStateObs.filter { it == BluetoothAdapter.STATE_OFF }.firstOrError().test()
         .await(5, TimeUnit.SECONDS)
+    sleep(100)
     bluetoothManager.adapter.enable()
     bluetoothStateObs.filter { it == BluetoothAdapter.STATE_ON }.firstOrError().test()
         .await(5, TimeUnit.SECONDS)
-    while (bluetoothManager.adapter.enable().not()) {
+    while (bluetoothManager.adapter.isEnabled.not()) {
         sleep(100)
     }
-    sleep(3_000)
 }
 
 internal fun connect(): RxBluetoothGatt {
@@ -89,5 +92,13 @@ internal object LogcatLogger : Logger {
 
 }
 
-internal val CURRENT_TIME_CHARACTERISTIC: UUID = UUID
+/** this one is the heart rate characteristic emulated by nRF Connect when advertising with the app */
+internal val NOTIFY_CHAR: UUID = UUID
+    .fromString("00002a37-0000-1000-8000-00805f9b34fb")
+
+internal val READ_CHAR: UUID = UUID
     .fromString("00002A2B-0000-1000-8000-00805F9B34FB")
+
+internal val PERMISSIONS = mutableListOf(ACCESS_FINE_LOCATION)
+    .apply { if (Build.VERSION.SDK_INT >= 29) add(ACCESS_BACKGROUND_LOCATION) }
+    .toTypedArray()

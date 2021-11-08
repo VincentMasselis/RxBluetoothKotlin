@@ -17,10 +17,7 @@ internal class DisconnectionTests {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    )
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(*PERMISSIONS)
 
     @Before
     fun setup() {

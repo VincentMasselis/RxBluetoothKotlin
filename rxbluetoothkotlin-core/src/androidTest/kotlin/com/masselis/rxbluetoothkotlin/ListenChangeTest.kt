@@ -1,6 +1,5 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.Manifest
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
@@ -9,6 +8,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 
 
@@ -17,10 +17,7 @@ internal class ListenChangeTest {
 
     @Rule
     @JvmField
-    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    )
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(*PERMISSIONS)
 
     private lateinit var gatt: RxBluetoothGatt
 
@@ -34,11 +31,12 @@ internal class ListenChangeTest {
     /** While listening characteristic, plug in the device to update the battery percent */
     @Test
     fun listenChangeTest() {
-        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             }
-            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
+            .map { ByteBuffer.wrap(it).short }
+            .doOnNext { Log.v(TAG, "Current HR : $it") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .firstOrError()
             .test()
@@ -50,11 +48,12 @@ internal class ListenChangeTest {
     fun listenChangeDisconnectionTest() {
         Completable.timer(1, TimeUnit.SECONDS)
             .subscribe { gatt.disconnect().subscribe() }
-        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             }
-            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
+            .map { ByteBuffer.wrap(it).short }
+            .doOnNext { Log.v(TAG, "Current HR : $it") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .test()
             .awaitDone(20, TimeUnit.SECONDS)
@@ -64,15 +63,15 @@ internal class ListenChangeTest {
     /** While listening characteristic, turn off the device (reset or removing the battery should be enough) */
     @Test
     fun listenChangeUnexpectedDisconnectionTest() {
-        gatt.enableNotification(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+        gatt.enableNotification(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             .flatMapPublisher {
-                gatt.listenChanges(gatt.source.findCharacteristic(CURRENT_TIME_CHARACTERISTIC)!!)
+                gatt.listenChanges(gatt.source.findCharacteristic(NOTIFY_CHAR)!!)
             }
-            .doOnNext { Log.v(TAG, "Current second : ${it[6].toInt()}") }
+            .map { ByteBuffer.wrap(it).short }
+            .doOnNext { Log.v(TAG, "Current HR : $it") }
             .doOnError { Log.v(TAG, "Failed, reason :$it") }
             .test()
-            .awaitDone(20, TimeUnit.SECONDS)
-            .assertError(DeviceDisconnected.ListenChangesDeviceDisconnected::class.java)
+            .awaitDone(1, TimeUnit.MINUTES)
     }
 
     companion object {
