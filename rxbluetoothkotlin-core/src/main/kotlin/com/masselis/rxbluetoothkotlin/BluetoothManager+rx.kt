@@ -42,7 +42,7 @@ private const val TAG = "BluetoothManager+rx"
  *
  * onComplete is never called. The downstream has to dispose to stop the scan.
  *
- * onError if an error has occurred. It can emit [DeviceDoesNotSupportBluetooth], [NeedLocationPermission], [BluetoothIsTurnedOff], [LocationServiceDisabled] and
+ * onError if an error has occurred. It can emit [DeviceDoesNotSupportBluetooth], [NeedBluetoothScanPermission], [NeedLocationPermission], [BluetoothIsTurnedOff], [LocationServiceDisabled] and
  * [ScanFailedException]
  *
  * @see android.bluetooth.le.ScanResult
