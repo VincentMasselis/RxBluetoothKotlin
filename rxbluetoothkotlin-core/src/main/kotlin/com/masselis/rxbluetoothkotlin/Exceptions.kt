@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.masselis.rxbluetoothkotlin.CannotInitialize.CannotInitializeCharacteristicWrite
 import com.masselis.rxbluetoothkotlin.DeviceDisconnected.CharacteristicWriteDeviceDisconnected
 import java.util.*
@@ -37,6 +39,24 @@ public class DeviceDoesNotSupportBluetooth : Throwable() {
  */
 public class NeedLocationPermission : Throwable() {
     override fun toString(): String = "NeedLocationPermission()"
+}
+
+/**
+ * Error fired if the bluetooth permission is require for the current app. You have to request for
+ * the missing permission [android.Manifest.permission.BLUETOOTH_SCAN].
+ */
+@RequiresApi(Build.VERSION_CODES.S)
+public class NeedBluetoothScanPermission : Throwable() {
+    override fun toString(): String = "NeedBluetoothScanPermission()"
+}
+
+/**
+ * Error fired if the bluetooth permission is require for the current app. You have to request for
+ * the missing permission [android.Manifest.permission.BLUETOOTH_CONNECT].
+ */
+@RequiresApi(Build.VERSION_CODES.S)
+public class NeedBluetoothConnectPermission : Throwable() {
+    override fun toString(): String = "NeedBluetoothConnectPermission()"
 }
 
 /**

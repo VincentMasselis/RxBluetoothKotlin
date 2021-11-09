@@ -1,17 +1,21 @@
 package com.vincentmasselis.demoapp
 
+import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.jakewharton.rxbinding4.view.clicks
+import com.masselis.rxbluetoothkotlin.*
 import com.vincentmasselis.demoapp.databinding.ActivityDeviceBinding
-import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -24,9 +28,15 @@ class DeviceActivity : AppCompatActivity() {
 
     private val device by lazy { intent.getParcelableExtra<BluetoothDevice>(DEVICE_EXTRA)!! }
 
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) states.onNext(States.Connecting)
+            else finish()
+        }
     private val states = BehaviorSubject.createDefault<States>(States.Connecting)
     private lateinit var binding: ActivityDeviceBinding
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,10 +63,17 @@ class DeviceActivity : AppCompatActivity() {
         states
             .filter { it is States.Connecting }
             .switchMapSingle { device.connectRxGatt() }
+            .onErrorComplete {
+                if (it is NeedBluetoothConnectPermission) {
+                    permissionLauncher.launch(BLUETOOTH_CONNECT)
+                    true
+                } else
+                    false
+            }
             .switchMapMaybe { gatt -> gatt.whenConnectionIsReady().map { gatt } }
+            .observeOn(AndroidSchedulers.mainThread())
             .doOnSubscribe { binding.connectingGroup.visibility = View.VISIBLE }
             .doFinally { binding.connectingGroup.visibility = View.INVISIBLE }
-            .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 {
                     Toast.makeText(this, "Connected !", Toast.LENGTH_SHORT).show()

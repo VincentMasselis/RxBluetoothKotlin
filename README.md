@@ -10,11 +10,12 @@ Made with love at the [Equisense](http://equisense.com) HQ. This library is used
 
 Looking for BLE with Coroutines instead of RxJava ? Take a look at the [LouisCAD's implementation](https://github.com/Beepiz/BleGattCoroutines).
 
-## ⚠️ Android 10 permissions changes ⚠️
-Starting from Android API 29, the coarse location permission is not required anymore, instead of this, you have to use the FINE permission location to scan over the bluetooth low energy. Before upgrading `targetSdkVersion` to 29 in your app, check your `requestPermission` calls according to this new permission.
+## ⚠️ Android 12 permissions changes ⚠️
+Starting from Android API 31, the fine location permission is not required anymore, instead of this, you have to use the BLUETOOTH_CONNECT and BLUETOOTH_SCAN permissions when dealing the bluetooth low energy framework. Before upgrading `targetSdkVersion` to 31 in your app, check your `requestPermission` calls according to this new permission.
 
-Because of this change, RxBluetoothKotlin was updated to fire the `NeedLocationPermission` exception at the right moment when the fine location permission is missing starting from the release `1.2.2`.
-If you're targeting Android API 28 and less, the last supported release is 1.2.1, if you're targeting API 29 or more, you should use the last version of RxBluetoothKotlin.
+Because of this change, RxBluetoothKotlin was updated to fire the `NeedBluetoothScanPermission` and `NeedBluetoothConnectPermission` exceptions at the right moment if they're missing at the runtime. Theses exceptions are fired since the release `3.2.0`.
+
+[Learn more](https://developer.android.com/guide/topics/connectivity/bluetooth/permissions)
 
 ## ⚠️ Important notice about Maven Central release ⚠️
 **RxBluetoothKotlin is released on Maven Central** since the version `3.1.0` you don't have to worry about this library when jCenter will shutdown ! Unfortunately, according to the Maven Central policies, I must update my package to match with the host domain I own. I only own `masselis.com`, so the package name RxBluetothKotlin were renamed from `com.vincentmasselis.rxbluetoothkotlin` to `com.masselis.rxbluetoothkotlin`, as consequence, <ins>you have to renamed EVERY import from rxbluetoothkotlin to the new package name</ins>.
@@ -22,11 +23,8 @@ If you're targeting Android API 28 and less, the last supported release is 1.2.1
 ## TL/DR
 
 ```groovy
+// Check the github release section to find the latest available version
 implementation 'com.masselis.rxbluetoothkotlin:rxbluetoothkotlin-core:<<latest_version>>'
-// Add this to use the scanner
-implementation 'no.nordicsemi.android.support.v18:scanner:1.4.3'
-// RxBluetoothKotlin doesn't provides the RxJava dependecy, you have to add it yourself:
-implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
 ```
 
 ### Scan
@@ -69,15 +67,20 @@ rxBluetoothGatt.disconnect().subscribe()
 
 ## Requirements
 * Min target API 18
-* A manifest with `<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />` and `<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />`
-* The user permission to access to the fine Location `requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)`
+* When <ins>scanning</ins> with RxBluetoothKotlin, you have to grant theses runtime permissions:
+    - From Android 6 to 9 inclusive: `ACCESS_COARSE_LOCATION`
+    - From Android 10 to 11 inclusive: `ACCESS_FINE_LOCATION`
+    - From Android 12: `BLUETOOTH_SCAN`
+* When <ins>connecting</ins> with RxBluetoothKotlin, you have to grant this runtime permission:
+    - From Android 12: `BLUETOOTH_CONNECT`
 * A turned on bluetooth chip `(context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled`
+* You can add to your manifest `<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />`
 
 ## Logging
-When scanning with `rxScan()` or connecting with `connectRxGatt()`, you can set the `logger` parameter. By setting it, RxBluetoothKotlin will produce a log for every bluetooth input, output, starting scan, error thrown, etc.. I recommend to set it for debugging purproses and/or if you're not familiar with the Android BLE API. It could helps you a lot to understand what's going on between your app and the Bluetooth Low Energy device.
+When scanning with `rxScan()` or connecting with `connectRxGatt()`, you can set the `logger` parameter. By setting it, RxBluetoothKotlin will produce a log for every bluetooth input, output, starting scan, error thrown, etc.. I recommend to set it for debugging purposes and/or if you're not familiar with the Android BLE API. It could helps you a lot to understand what's going on between your app and the Bluetooth Low Energy device.
 
 ## Error management
-Interact with Bluetooth Low Energy devices on Android is **hard**. The BLE specs uses unfamiliars concepts, the BLE API from Android could fails at any moment and some exceptions are silent. Because of this, a basic method like `write(BluetoothGattCharacteristic)` could fails for 5 differents reasons. It becomes harder if you are chaining this call with other calls, this sum up to a thrown exception when it's impossible to known which call fails and why.
+Interact with Bluetooth Low Energy devices on Android is **hard**. The BLE specs uses unfamiliar concepts, the BLE API from Android could fails at any moment and some exceptions are silent. Because of this, a basic method like `write(BluetoothGattCharacteristic)` could fails for 5 different reasons. It becomes harder if you are chaining this call with other calls, this sum up to a thrown exception when it's impossible to known which call fails and why.
 
 For this reason, every public method from this library is documented with every exceptions which could be fired and most of the exception are unique. For example: `write(BluetoothGattCharacteristic)` could fire:
 * Unique `CharacteristicWriteDeviceDisconnected` if the device disconnects while writing
