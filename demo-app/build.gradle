@@ -2,11 +2,14 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion compile_sdk_version
+    buildToolsVersion build_tool_version
+
     defaultConfig {
         applicationId "com.masselis.demoapp"
         minSdkVersion 18
-        targetSdkVersion 31
+        targetSdkVersion target_sdk_version
+
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -31,13 +34,10 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.3.1'
-    implementation 'androidx.core:core-ktx:1.6.0'
+    implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.1'
 
     implementation project(":rxbluetoothkotlin-core")
-    implementation 'io.reactivex.rxjava3:rxjava:3.1.2'
-    implementation 'no.nordicsemi.android.support.v18:scanner:1.4.3'
-    implementation 'io.reactivex.rxjava3:rxandroid:3.0.0'
 
     // Helpers
     implementation 'androidx.recyclerview:recyclerview:1.2.1'
