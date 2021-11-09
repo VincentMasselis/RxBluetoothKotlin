@@ -16,6 +16,9 @@ Starting from Android API 29, the coarse location permission is not required any
 Because of this change, RxBluetoothKotlin was updated to fire the `NeedLocationPermission` exception at the right moment when the fine location permission is missing starting from the release `1.2.2`.
 If you're targeting Android API 28 and less, the last supported release is 1.2.1, if you're targeting API 29 or more, you should use the last version of RxBluetoothKotlin.
 
+## ⚠️ Important notice about Maven Central release ⚠️
+**RxBluetoothKotlin is released on Maven Central** since the version `3.1.0` you don't have to worry about this library when jCenter will shutdown ! Unfortunately, according to the Maven Central policies, I must update my package package to match with the host domain I own. I only own `masselis.com`, so the package name RxBluetothKotlin were renamed from `com.vincentmasselis.rxbluetoothkotlin` to `com.masselis.rxbluetoothkotlin`, as consequence, <ins>you have to renamed EVERY import from rxbluetoothkotlin to the new package name.</ins>
+
 ## TL/DR
 
 ```groovy
