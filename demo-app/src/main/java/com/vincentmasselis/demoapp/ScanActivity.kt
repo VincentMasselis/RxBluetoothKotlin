@@ -13,18 +13,19 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jakewharton.rxbinding4.view.clicks
+import com.vincentmasselis.demoapp.databinding.ActivityScanBinding
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
-import kotlinx.android.synthetic.main.activity_scan.*
 import java.util.concurrent.TimeUnit
 
 class ScanActivity : AppCompatActivity() {
 
     private var currentState = BehaviorSubject.createDefault<States>(States.NotScanning)
+    private lateinit var binding: ActivityScanBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,32 +37,33 @@ class ScanActivity : AppCompatActivity() {
             .subscribe {
                 @Suppress("UNUSED_VARIABLE") val ignoreMe = when (it) {
                     States.NotScanning -> {
-                        not_scanning_group.visibility = View.VISIBLE
-                        start_scan_group.visibility = View.GONE
-                        scanning_group.visibility = View.GONE
+                        binding.notScanningGroup.visibility = View.VISIBLE
+                        binding.startScanGroup.visibility = View.GONE
+                        binding.scanningGroup.visibility = View.GONE
                     }
                     States.StartingScan -> {
-                        not_scanning_group.visibility = View.GONE
-                        start_scan_group.visibility = View.VISIBLE
-                        scanning_group.visibility = View.GONE
+                        binding.notScanningGroup.visibility = View.GONE
+                        binding.startScanGroup.visibility = View.VISIBLE
+                        binding.scanningGroup.visibility = View.GONE
                     }
                     States.Scanning -> {
-                        not_scanning_group.visibility = View.GONE
-                        start_scan_group.visibility = View.GONE
-                        scanning_group.visibility = View.VISIBLE
+                        binding.notScanningGroup.visibility = View.GONE
+                        binding.startScanGroup.visibility = View.GONE
+                        binding.scanningGroup.visibility = View.VISIBLE
                     }
                 }
             }
             .disposeOnState(ActivityState.DESTROY, this)
 
-        scan_recycler_view.layoutManager = LinearLayoutManager(this)
-        scan_recycler_view.adapter = ScanResultAdapter(layoutInflater, scan_recycler_view)
+        binding.scanRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.scanRecyclerView.adapter =
+            ScanResultAdapter(layoutInflater, binding.scanRecyclerView)
 
-        start_scan_button.clicks()
+        binding.startScanButton.clicks()
             .subscribe { startScan() }
             .disposeOnState(ActivityState.DESTROY, this)
 
-        stop_scan_button.clicks()
+        binding.stopScanButton.clicks()
             .subscribe {
                 scanDisp?.dispose()
                 currentState.onNext(States.NotScanning)
@@ -70,7 +72,7 @@ class ScanActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        scan_recycler_view.adapter = null
+        binding.scanRecyclerView.adapter = null
         super.onDestroy()
     }
 
@@ -82,7 +84,11 @@ class ScanActivity : AppCompatActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
             PERMISSION_CODE_FINE_LOCATION -> if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startScan()
@@ -97,15 +103,23 @@ class ScanActivity : AppCompatActivity() {
             .doOnNext { currentState.onNext(States.Scanning) }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({
-                (scan_recycler_view.adapter as ScanResultAdapter).append(it)
+                (binding.scanRecyclerView.adapter as ScanResultAdapter).append(it)
             }, {
                 currentState.onNext(States.NotScanning)
                 when (it) {
-                    is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this).setMessage("The current device doesn't support bluetooth le").show()
+                    is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this)
+                        .setMessage("The current device doesn't support bluetooth le").show()
                     is NeedLocationPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)
-                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
-                    is LocationServiceDisabled -> startActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQUEST_CODE_ENABLE_LOCATION)
+                        requestPermissions(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                            PERMISSION_CODE_FINE_LOCATION
+                        )
+                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this)
+                        .setMessage("Bluetooth is turned off").show()
+                    is LocationServiceDisabled -> startActivityForResult(
+                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS),
+                        REQUEST_CODE_ENABLE_LOCATION
+                    )
                     else -> AlertDialog.Builder(this).setMessage("Error occurred: $it").show()
                 }
             })

@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.jakewharton.rxbinding4.view.clicks
+import com.vincentmasselis.demoapp.databinding.ActivityDeviceBinding
 import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
@@ -17,7 +18,6 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Maybe
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.subjects.BehaviorSubject
-import kotlinx.android.synthetic.main.activity_device.*
 import java.util.*
 
 class DeviceActivity : AppCompatActivity() {
@@ -25,11 +25,13 @@ class DeviceActivity : AppCompatActivity() {
     private val device by lazy { intent.getParcelableExtra<BluetoothDevice>(DEVICE_EXTRA)!! }
 
     private val states = BehaviorSubject.createDefault<States>(States.Connecting)
+    private lateinit var binding: ActivityDeviceBinding
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_device)
+        binding = ActivityDeviceBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         states
             .distinctUntilChanged()
@@ -37,12 +39,12 @@ class DeviceActivity : AppCompatActivity() {
             .subscribe {
                 @Suppress("UNUSED_VARIABLE") val ignoreMe = when (it) {
                     States.Connecting -> {
-                        connecting_group.visibility = View.VISIBLE
-                        connected_group.visibility = View.GONE
+                        binding.connectingGroup.visibility = View.VISIBLE
+                        binding.connectedGroup.visibility = View.GONE
                     }
                     is States.Connected -> {
-                        connecting_group.visibility = View.GONE
-                        connected_group.visibility = View.VISIBLE
+                        binding.connectingGroup.visibility = View.GONE
+                        binding.connectedGroup.visibility = View.VISIBLE
                     }
                 }
             }
@@ -52,8 +54,8 @@ class DeviceActivity : AppCompatActivity() {
             .filter { it is States.Connecting }
             .switchMapSingle { device.connectRxGatt() }
             .switchMapMaybe { gatt -> gatt.whenConnectionIsReady().map { gatt } }
-            .doOnSubscribe { connecting_progress_bar.visibility = View.VISIBLE }
-            .doFinally { connecting_progress_bar.visibility = View.INVISIBLE }
+            .doOnSubscribe { binding.connectingGroup.visibility = View.VISIBLE }
+            .doFinally { binding.connectingGroup.visibility = View.INVISIBLE }
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 {
@@ -76,11 +78,11 @@ class DeviceActivity : AppCompatActivity() {
             .switchMap { state ->
                 when (state) {
                     States.Connecting -> Observable.empty()
-                    is States.Connected -> read_battery_button.clicks().map { state.gatt }
+                    is States.Connected -> binding.readBatteryButton.clicks().map { state.gatt }
                 }
             }
             .subscribe { gatt ->
-                battery_text_view.text = ""
+                binding.batteryTextView.text = ""
                 Maybe
                     .defer {
                         if (gatt.source.services.isEmpty()) gatt.discoverServices()
@@ -91,7 +93,7 @@ class DeviceActivity : AppCompatActivity() {
                     .map { it[0].toInt() }
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(
-                        { battery_text_view.text = "$it%" },
+                        { binding.batteryTextView.text = "$it%" },
                         {
                             val message =
                                 when (it) {

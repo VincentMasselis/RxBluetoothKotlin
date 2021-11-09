@@ -20,7 +20,8 @@
             android:label="@string/title_activity_device" />
         <activity
             android:name=".ScanActivity"
-            android:label="@string/title_activity_scan">
+            android:label="@string/title_activity_scan"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
