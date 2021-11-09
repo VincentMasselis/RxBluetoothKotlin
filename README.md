@@ -132,5 +132,3 @@ Discover our [Equisense sensors](https://equisense.com)
 //TODO 
 
 - Getting started
-
-- Licence
