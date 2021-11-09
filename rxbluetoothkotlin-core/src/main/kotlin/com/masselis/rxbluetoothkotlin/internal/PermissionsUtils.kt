@@ -1,18 +1,29 @@
 package com.masselis.rxbluetoothkotlin.internal
 
-import android.Manifest
+import android.Manifest.permission.*
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 
-internal fun missingPermission() =
+internal fun missingConnectPermission(): String? =
     when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                && hasPermission(Manifest.permission.BLUETOOTH_CONNECT).not() -> Manifest.permission.BLUETOOTH_CONNECT
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                && hasPermission(Manifest.permission.BLUETOOTH_SCAN).not() -> Manifest.permission.BLUETOOTH_SCAN
-        hasPermission(Manifest.permission.ACCESS_FINE_LOCATION).not() -> Manifest.permission.ACCESS_FINE_LOCATION
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasPermission(BLUETOOTH_CONNECT).not() ->
+            BLUETOOTH_CONNECT
         else -> null
     }
 
-private fun hasPermission(permission: String) = ContextCompat.checkSelfPermission(appContext, permission) == PackageManager.PERMISSION_GRANTED
+internal fun missingScanPermission(): String? =
+    when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasPermission(BLUETOOTH_SCAN).not() ->
+            BLUETOOTH_SCAN
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+                && hasPermission(ACCESS_FINE_LOCATION).not() ->
+            ACCESS_FINE_LOCATION
+        hasPermission(ACCESS_COARSE_LOCATION).not() ->
+            ACCESS_COARSE_LOCATION
+        else -> null
+    }
+
+private fun hasPermission(permission: String) =
+    ContextCompat.checkSelfPermission(appContext, permission) == PackageManager.PERMISSION_GRANTED

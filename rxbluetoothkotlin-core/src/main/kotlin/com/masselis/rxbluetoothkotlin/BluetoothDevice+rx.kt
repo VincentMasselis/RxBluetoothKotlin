@@ -6,10 +6,7 @@ import android.content.Context
 import android.os.Build
 import com.masselis.rxbluetoothkotlin.decorator.CallbackLogger
 import com.masselis.rxbluetoothkotlin.internal.appContext
-import com.masselis.rxbluetoothkotlin.internal.hasPermissions
-import com.vincentmasselis.rxbluetoothkotlin.decorator.CallbackLogger
-import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
-import com.vincentmasselis.rxbluetoothkotlin.internal.missingPermission
+import com.masselis.rxbluetoothkotlin.internal.missingConnectPermission
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Single
 
@@ -32,7 +29,7 @@ private const val TAG = "BluetoothDevice+rx"
  * @return
  * onSuccess with a [BluetoothGatt] when a [BluetoothGatt] instance is returned by the system API.
  *
- * onError with [NeedLocationPermission], [NeedBluetoothScanPermission], [NeedBluetoothConnectPermission], [BluetoothIsTurnedOff] or [NullBluetoothGatt]
+ * onError with [NeedLocationPermission], [NeedBluetoothConnectPermission], [BluetoothIsTurnedOff] or [NullBluetoothGatt]
  *
  * @see BluetoothGattCallback
  * @see BluetoothDevice.connectGatt
@@ -60,34 +57,32 @@ public fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.c
 ): Single<E> = Single
     .fromCallable {
 
-        when (missingPermission()) {
+        when (missingConnectPermission()) {
             Manifest.permission.BLUETOOTH_CONNECT -> throw NeedBluetoothConnectPermission()
-            Manifest.permission.BLUETOOTH_SCAN -> throw NeedBluetoothScanPermission()
-            Manifest.permission.ACCESS_FINE_LOCATION -> throw NeedLocationPermission()
         }
 
-    val btState =
-        if ((appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
-            BluetoothAdapter.STATE_ON
-        else
-            BluetoothAdapter.STATE_OFF
+        val btState =
+            if ((appContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled)
+                BluetoothAdapter.STATE_ON
+            else
+                BluetoothAdapter.STATE_OFF
 
-    if (btState == BluetoothAdapter.STATE_OFF) {
-        logger?.v(TAG, "Bluetooth is off")
-        throw BluetoothIsTurnedOff()
-    }
+        if (btState == BluetoothAdapter.STATE_OFF) {
+            logger?.v(TAG, "Bluetooth is off")
+            throw BluetoothIsTurnedOff()
+        }
 
-    val callbacks = rxCallbackBuilder()
+        val callbacks = rxCallbackBuilder()
 
-    val gatt = connectGattWrapper(appContext, callbacks.source)
+        val gatt = connectGattWrapper(appContext, callbacks.source)
 
-    if (gatt == null) {
-        logger?.v(TAG, "connectGatt method returned null")
-        throw NullBluetoothGatt()
-    }
+        if (gatt == null) {
+            logger?.v(TAG, "connectGatt method returned null")
+            throw NullBluetoothGatt()
+        }
 
-    return@fromCallable rxGattBuilder(gatt, callbacks)
-}.subscribeOn(AndroidSchedulers.mainThread())
+        return@fromCallable rxGattBuilder(gatt, callbacks)
+    }.subscribeOn(AndroidSchedulers.mainThread())
 
 /** @see connectTypedRxGatt */
 public fun BluetoothDevice.connectRxGatt(

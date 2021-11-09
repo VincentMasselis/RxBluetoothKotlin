@@ -1,20 +1,22 @@
 package com.vincentmasselis.demoapp
 
-import android.Manifest
+import android.Manifest.permission.*
 import android.app.Activity
 import android.bluetooth.BluetoothManager
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.jakewharton.rxbinding4.view.clicks
+import com.masselis.rxbluetoothkotlin.*
 import com.vincentmasselis.demoapp.databinding.ActivityScanBinding
-import com.vincentmasselis.rxbluetoothkotlin.*
 import com.vincentmasselis.rxuikotlin.disposeOnState
 import com.vincentmasselis.rxuikotlin.utils.ActivityState
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
@@ -26,10 +28,24 @@ class ScanActivity : AppCompatActivity() {
 
     private var currentState = BehaviorSubject.createDefault<States>(States.NotScanning)
     private lateinit var binding: ActivityScanBinding
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) startScan()
+        }
+
+    private val forResultLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) startScan()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_scan)
+        binding = ActivityScanBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(this, BLUETOOTH_CONNECT) != PERMISSION_GRANTED
+        ) permissionLauncher.launch(BLUETOOTH_CONNECT)
 
         currentState
             .distinctUntilChanged()
@@ -76,25 +92,6 @@ class ScanActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            REQUEST_CODE_ENABLE_LOCATION -> if (resultCode == Activity.RESULT_OK) startScan()
-        }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            PERMISSION_CODE_FINE_LOCATION -> if (grantResults[0] == PackageManager.PERMISSION_GRANTED) startScan()
-        }
-    }
-
     private var scanDisp: Disposable? = null
     private fun startScan() {
         currentState.onNext(States.StartingScan)
@@ -107,14 +104,18 @@ class ScanActivity : AppCompatActivity() {
             }, {
                 currentState.onNext(States.NotScanning)
                 when (it) {
-                    is DeviceDoesNotSupportBluetooth -> AlertDialog.Builder(this)
-                        .setMessage("The current device doesn't support bluetooth le").show()
+                    is DeviceDoesNotSupportBluetooth -> AlertDialog
+                        .Builder(this)
+                        .setMessage("The current device doesn't support bluetooth le")
+                        .show()
+                    is BluetoothIsTurnedOff ->
+                        AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
                     is NeedLocationPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_FINE_LOCATION)
-                    is NeedBluetoothPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                        requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN), PERMISSION_CODE_FINE_LOCATION)
-                    is BluetoothIsTurnedOff -> AlertDialog.Builder(this).setMessage("Bluetooth is turned off").show()
-                    is LocationServiceDisabled -> startActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQUEST_CODE_ENABLE_LOCATION)
+                        permissionLauncher.launch(ACCESS_FINE_LOCATION)
+                    is NeedBluetoothScanPermission -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                        permissionLauncher.launch(BLUETOOTH_SCAN)
+                    is LocationServiceDisabled ->
+                        forResultLauncher.launch(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                     else -> AlertDialog.Builder(this).setMessage("Error occurred: $it").show()
                 }
             })
@@ -125,10 +126,5 @@ class ScanActivity : AppCompatActivity() {
         object NotScanning : States()
         object StartingScan : States()
         object Scanning : States()
-    }
-
-    companion object {
-        private const val PERMISSION_CODE_FINE_LOCATION = 1
-        private const val REQUEST_CODE_ENABLE_LOCATION = 2
     }
 }

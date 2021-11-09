@@ -1,7 +1,7 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.annotation.SuppressLint
 import android.Manifest
+import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -13,11 +13,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.core.content.getSystemService
 import com.masselis.rxbluetoothkotlin.internal.appContext
-import com.masselis.rxbluetoothkotlin.internal.hasPermissions
+import com.masselis.rxbluetoothkotlin.internal.missingScanPermission
 import com.masselis.rxbluetoothkotlin.internal.observe
-import com.vincentmasselis.rxbluetoothkotlin.internal.ContextHolder
-import com.vincentmasselis.rxbluetoothkotlin.internal.missingPermission
-import com.vincentmasselis.rxbluetoothkotlin.internal.toObservable
 import io.reactivex.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.*
@@ -61,40 +58,41 @@ public fun BluetoothManager.rxScan(
     logger: Logger? = null
 ): Flowable<ScanResult> =
     Completable
-        .defer {
-            val missingPermission = missingPermission()
-                    when {
-                adapter == null || appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE).not() -> {
+        .fromAction {
+            val missingPermission = missingScanPermission()
+            when {
+                adapter == null || appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+                    .not() -> {
                     logger?.v(TAG, "rxScan(), error : DeviceDoesNotSupportBluetooth()")
-                    return@defer Completable.error(DeviceDoesNotSupportBluetooth())
-                }
-                missingPermission == Manifest.permission.BLUETOOTH_CONNECT -> {
-                    logger?.v(TAG, "rxScan(), error : NeedBluetoothConnectPermission()")
-                    return@defer Completable.error(NeedBluetoothConnectPermission())
+                    throw DeviceDoesNotSupportBluetooth()
                 }
                 missingPermission == Manifest.permission.BLUETOOTH_SCAN -> {
                     logger?.v(TAG, "rxScan(), error : NeedBluetoothScanPermission()")
-                    return@defer Completable.error(NeedBluetoothScanPermission())
+                    throw NeedBluetoothScanPermission()
                 }
                 missingPermission == Manifest.permission.ACCESS_FINE_LOCATION -> {
                     logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
-                    return@defer Completable.error(NeedLocationPermission())
+                    throw NeedLocationPermission()
+                }
+                missingPermission == Manifest.permission.ACCESS_COARSE_LOCATION -> {
+                    logger?.v(TAG, "rxScan(), error : NeedLocationPermission()")
+                    throw NeedLocationPermission()
                 }
                 adapter.isEnabled.not() -> {
                     logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
-                    return@defer Completable.error(BluetoothIsTurnedOff())
+                    throw BluetoothIsTurnedOff()
                 }
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                        appContext.getSystemService<LocationManager>()!!.let { locationManager ->
-                            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-                                .not() && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
-                        } -> {
-                    logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
-                    return@defer Completable.error(LocationServiceDisabled())
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                    val locationManager = appContext.getSystemService<LocationManager>()!!
+                    if (
+                        locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not()
+                        && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER).not()
+                    ) {
+                        logger?.v(TAG, "rxScan(), error : LocationServiceDisabled()")
+                        throw LocationServiceDisabled()
+                    }
                 }
             }
-
-            Completable.complete()
         }
         .andThen(
             Flowable.create<ScanResult>({ downStream ->
@@ -105,7 +103,10 @@ public fun BluetoothManager.rxScan(
                 val callback = object : ScanCallback() {
 
                     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-                    override fun onScanResult(callbackType: Int, result: ScanResult) {//TODO Handle callbackType
+                    override fun onScanResult(
+                        callbackType: Int,
+                        result: ScanResult
+                    ) {//TODO Handle callbackType
                         safeDownStream?.onNext(result)
                     }
 
@@ -121,8 +122,13 @@ public fun BluetoothManager.rxScan(
                 IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
                     .observe()
                     .subscribe { intent ->
-                        when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
-                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(BluetoothIsTurnedOff())
+                        when (intent.getIntExtra(
+                            BluetoothAdapter.EXTRA_STATE,
+                            BluetoothAdapter.ERROR
+                        )) {
+                            BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> downStream.tryOnError(
+                                BluetoothIsTurnedOff()
+                            )
                             else -> {
                             }
                         }
@@ -133,13 +139,20 @@ public fun BluetoothManager.rxScan(
 
                 flushEvery?.run {
                     Observable
-                        .interval(flushEvery.first, flushEvery.second, AndroidSchedulers.mainThread())
+                        .interval(
+                            flushEvery.first,
+                            flushEvery.second,
+                            AndroidSchedulers.mainThread()
+                        )
                         .subscribe { scanner.flushPendingScanResults(callback) }
                         .let { disposables.add(it) }
                 }
 
                 if (scanArgs != null) {
-                    logger?.v(TAG, "rxScan(), startScan() with scanArgs.first : ${scanArgs.first} and scanArgs.second : ${scanArgs.second}")
+                    logger?.v(
+                        TAG,
+                        "rxScan(), startScan() with scanArgs.first : ${scanArgs.first} and scanArgs.second : ${scanArgs.second}"
+                    )
                     scanner.startScan(scanArgs.first, scanArgs.second, callback)
                 } else {
                     logger?.v(TAG, "rxScan(), startScan() without scanArgs")
@@ -159,7 +172,10 @@ public fun BluetoothManager.rxScan(
                                 .apply { isAccessible = true }
                                 .get(scanner)!!
                                 .let { (it as Map<*, *>)[callback]!! }
-                                .let { wrapper -> wrapper.javaClass.getDeclaredField("nativeCallback").apply { isAccessible = true }.get(wrapper) }
+                                .let { wrapper ->
+                                    wrapper.javaClass.getDeclaredField("nativeCallback")
+                                        .apply { isAccessible = true }.get(wrapper)
+                                }
                             // Let's check if the system holds my callback
                             val systemScanner = adapter.bluetoothLeScanner
                             systemScanner.javaClass
