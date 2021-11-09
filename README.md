@@ -15,6 +15,8 @@ Starting from Android API 31, the fine location permission is not required anymo
 
 Because of this change, RxBluetoothKotlin was updated to fire the `NeedBluetoothScanPermission` and `NeedBluetoothConnectPermission` exceptions at the right moment if they're missing at the runtime. Theses exceptions are fired since the release `3.2.0`.
 
+[Learn more](https://developer.android.com/guide/topics/connectivity/bluetooth/permissions)
+
 ## ⚠️ Important notice about Maven Central release ⚠️
 **RxBluetoothKotlin is released on Maven Central** since the version `3.1.0` you don't have to worry about this library when jCenter will shutdown ! Unfortunately, according to the Maven Central policies, I must update my package to match with the host domain I own. I only own `masselis.com`, so the package name RxBluetothKotlin were renamed from `com.vincentmasselis.rxbluetoothkotlin` to `com.masselis.rxbluetoothkotlin`, as consequence, <ins>you have to renamed EVERY import from rxbluetoothkotlin to the new package name</ins>.
 
