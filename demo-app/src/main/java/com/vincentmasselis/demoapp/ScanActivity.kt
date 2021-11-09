@@ -43,6 +43,7 @@ class ScanActivity : AppCompatActivity() {
         binding = ActivityScanBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // To display the bluetooth device name I need this permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             ContextCompat.checkSelfPermission(this, BLUETOOTH_CONNECT) != PERMISSION_GRANTED
         ) permissionLauncher.launch(BLUETOOTH_CONNECT)
