@@ -1,12 +1,12 @@
 package com.masselis.rxbluetoothkotlin
 
-import android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
-import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.Manifest.permission.*
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Build.VERSION.SDK_INT
 import android.util.Log
 import com.masselis.rxbluetoothkotlin.internal.appContext
 import com.masselis.rxbluetoothkotlin.internal.observe
@@ -99,6 +99,14 @@ internal val NOTIFY_CHAR: UUID = UUID
 internal val READ_CHAR: UUID = UUID
     .fromString("00002A2B-0000-1000-8000-00805F9B34FB")
 
-internal val PERMISSIONS = mutableListOf(ACCESS_FINE_LOCATION)
-    .apply { if (Build.VERSION.SDK_INT >= 29) add(ACCESS_BACKGROUND_LOCATION) }
-    .toTypedArray()
+internal val PERMISSIONS =
+    when (SDK_INT) {
+        in Build.VERSION_CODES.M until Build.VERSION_CODES.Q ->
+            arrayOf(ACCESS_COARSE_LOCATION)
+        in Build.VERSION_CODES.Q until Build.VERSION_CODES.S ->
+            arrayOf(ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION)
+        in Build.VERSION_CODES.S..Int.MAX_VALUE ->
+            arrayOf(BLUETOOTH_SCAN)
+        else ->
+            emptyArray()
+    }

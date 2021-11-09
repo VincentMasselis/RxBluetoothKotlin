@@ -1,6 +1,7 @@
 package com.masselis.rxbluetoothkotlin
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.os.Build
@@ -34,6 +35,7 @@ private const val TAG = "BluetoothDevice+rx"
  * @see BluetoothGattCallback
  * @see BluetoothDevice.connectGatt
  */
+@SuppressLint("NewApi")
 @Suppress("UNCHECKED_CAST")
 public fun <T : RxBluetoothGatt.Callback, E : RxBluetoothGatt> BluetoothDevice.connectTypedRxGatt(
     logger: Logger? = null,

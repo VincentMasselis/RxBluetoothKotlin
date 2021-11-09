@@ -51,7 +51,7 @@ private const val TAG = "BluetoothManager+rx"
  * @see [android.bluetooth.le.BluetoothLeScanner.startScan]
  * @see [android.bluetooth.le.BluetoothLeScanner.flushPendingScanResults]
  */
-@SuppressLint("SoonBlockedPrivateApi")
+@SuppressLint("SoonBlockedPrivateApi", "NewApi")
 public fun BluetoothManager.rxScan(
     scanArgs: Pair<List<ScanFilter>, ScanSettings>? = null,
     flushEvery: Pair<Long, TimeUnit>? = null,
@@ -82,7 +82,7 @@ public fun BluetoothManager.rxScan(
                     logger?.v(TAG, "rxScan(), error : BluetoothIsTurnedOff()")
                     throw BluetoothIsTurnedOff()
                 }
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
+                Build.VERSION.SDK_INT in Build.VERSION_CODES.M until Build.VERSION_CODES.S -> {
                     val locationManager = appContext.getSystemService<LocationManager>()!!
                     if (
                         locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER).not()
