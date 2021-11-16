@@ -17,29 +17,70 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/read_battery_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Read Battery"
-        app:layout_constraintBottom_toTopOf="@+id/battery_text_view"
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="219dp"
+        android:layout_height="285dp"
+        app:layout_constraintBottom_toTopOf="@+id/espButton1"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        android:contentDescription="Symbol displaying whether the ESP32 LED is on or off"
+        app:srcCompat="@drawable/offlight" />
 
-    <TextView
-        android:id="@+id/battery_text_view"
-        style="@style/TextAppearance.AppCompat.Headline"
+    <RadioButton
+        android:id="@+id/espButton1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:clickable="false"
+        android:focusable="false"
+        android:text="Knop 1"
+        app:layout_constraintBottom_toTopOf="@+id/onButton"
+        app:layout_constraintEnd_toStartOf="@+id/espButton2"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView" />
+
+    <RadioButton
+        android:id="@+id/espButton2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:focusable="false"
+        android:text="Knop 2"
+        app:layout_constraintBottom_toTopOf="@+id/offButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/espButton1"
+        app:layout_constraintTop_toBottomOf="@+id/imageView" />
+
+    <Button
+        android:id="@+id/onButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LED on"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/offButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/espButton1" />
+
+    <Button
+        android:id="@+id/offButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LED off"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/onButton"
+        app:layout_constraintTop_toBottomOf="@+id/espButton2" />
+
+    <Button
+        android:id="@+id/testButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Test"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/read_battery_button"
-        tools:text="95%" />
+        app:layout_constraintTop_toBottomOf="@+id/onButton" />
 
     <androidx.constraintlayout.widget.Group
         android:id="@+id/connecting_group"
@@ -53,6 +94,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:constraint_referenced_ids="battery_text_view,read_battery_button" />
+        app:constraint_referenced_ids="imageView,onButton,offButton,espButton1,espButton2,testButton" />
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
