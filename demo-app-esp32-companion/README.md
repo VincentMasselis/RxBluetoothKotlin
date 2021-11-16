@@ -1,0 +1,1 @@
+ESP32 sketch for use in conjunction with the Android demo app. Assumes that the ESP32 has a pushbutton between pin 25 and ground and another button between pin 26 and ground, and an LED with resistor between pin 33 and ground.
