@@ -92,7 +92,7 @@ For this reason, every public method from this library is documented with every 
 All the 3 uniques exceptions are containing the required data to understand why it failed. For example `CharacteristicWriteDeviceDisconnected` has 5 fields, `bluetoothDevice`, `status`, `service`, `characteristic` and `value`, all of theses fields should helps you to understand what's going on.
 
 ## Demo app
-If you're not familiar with the Bluetooth Low Energy API or if you want to try this lib, you can build and run the [demo app](https://github.com/VincentMasselis/RxBluetoothKotlin/tree/master/dev-app) from this repo.
+If you're not familiar with the Bluetooth Low Energy API or if you want to try this lib, you can build and run the [demo app](https://github.com/VincentMasselis/RxBluetoothKotlin/tree/master/dev-app) from this repo. Demo app is meant to be used in conjunction with an ESP32 running the companion sketch.
 
 <img src="https://github.com/VincentMasselis/RxBluetoothKotlin/raw/master/assets/pictures/demo-scan-activity.jpg" width="250"> <img src="https://github.com/VincentMasselis/RxBluetoothKotlin/raw/master/assets/pictures/demo-device-activity.jpg" width="250">
 
