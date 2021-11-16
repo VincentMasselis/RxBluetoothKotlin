@@ -3,6 +3,7 @@ package com.vincentmasselis.demoapp
 import android.Manifest.permission.*
 import android.app.Activity
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.Intent
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Build
@@ -100,8 +101,13 @@ class ScanActivity : AppCompatActivity() {
             .rxScan(flushEvery = 1L to TimeUnit.SECONDS)
             .doOnNext { currentState.onNext(States.Scanning) }
             .observeOn(AndroidSchedulers.mainThread())
+            .doOnSubscribe {
+                val connecteddevices = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager)
+                    .getConnectedDevices(BluetoothProfile.GATT_SERVER)
+                (binding.scanRecyclerView.adapter as ScanResultAdapter).append(connecteddevices)
+            }
             .subscribe({
-                (binding.scanRecyclerView.adapter as ScanResultAdapter).append(it)
+                (binding.scanRecyclerView.adapter as ScanResultAdapter).append(it.device)
             }, {
                 currentState.onNext(States.NotScanning)
                 when (it) {

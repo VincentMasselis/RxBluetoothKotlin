@@ -1,5 +1,7 @@
 package com.vincentmasselis.demoapp
 
+import android.bluetooth.BluetoothClass
+import android.bluetooth.BluetoothDevice
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,11 +10,11 @@ import no.nordicsemi.android.support.v18.scanner.ScanResult
 
 class ScanResultAdapter(private val inflater: LayoutInflater, private val recyclerView: RecyclerView) : RecyclerView.Adapter<ScanResultViewHolder>(), View.OnClickListener {
 
-    private val scanResults = mutableListOf<ScanResult>()
+    private val scanResults = mutableListOf<BluetoothDevice>()
 
-    fun append(scanResult: ScanResult) {
+    fun append(scanResult: BluetoothDevice) {
         scanResults
-            .indexOfFirst { it.device.address == scanResult.device.address }
+            .indexOfFirst { it.address == scanResult.address }
             .takeIf { it != -1 }
             ?.let { index ->
                 scanResults[index] = scanResult
@@ -22,6 +24,14 @@ class ScanResultAdapter(private val inflater: LayoutInflater, private val recycl
 
         scanResults += scanResult
         notifyItemInserted(scanResults.size - 1)
+    }
+
+    fun append(connectedDevices: List<BluetoothDevice>) {
+        for (device in connectedDevices) {
+            if (device.type == BluetoothDevice.DEVICE_TYPE_LE) {
+                append(device)
+            }
+        }
     }
 
     override fun getItemCount(): Int = scanResults.size
@@ -35,7 +45,7 @@ class ScanResultAdapter(private val inflater: LayoutInflater, private val recycl
 
     override fun onBindViewHolder(holder: ScanResultViewHolder, position: Int) {
         val scanResult = scanResults[position]
-        holder.bind(scanResult.device.name ?: "N/A", scanResult.device.address)
+        holder.bind(scanResult.name ?: "N/A", scanResult.address)
     }
 
     override fun onViewDetachedFromWindow(holder: ScanResultViewHolder) {
@@ -44,6 +54,6 @@ class ScanResultAdapter(private val inflater: LayoutInflater, private val recycl
     }
 
     override fun onClick(view: View) {
-        recyclerView.context.startActivity(DeviceActivity.intent(recyclerView.context, scanResults[recyclerView.getChildAdapterPosition(view)].device))
+        recyclerView.context.startActivity(DeviceActivity.intent(recyclerView.context, scanResults[recyclerView.getChildAdapterPosition(view)]))
     }
 }
