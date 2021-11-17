@@ -106,7 +106,7 @@ internal val PERMISSIONS =
         in Build.VERSION_CODES.Q until Build.VERSION_CODES.S ->
             arrayOf(ACCESS_FINE_LOCATION, ACCESS_BACKGROUND_LOCATION)
         in Build.VERSION_CODES.S..Int.MAX_VALUE ->
-            arrayOf(BLUETOOTH_SCAN)
+            arrayOf(BLUETOOTH_SCAN, BLUETOOTH_CONNECT)
         else ->
             emptyArray()
     }
