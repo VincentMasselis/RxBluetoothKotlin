@@ -2,17 +2,18 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.masselis.rxbluetoothkotlin">
 
+    <!-- Theses permissions are not required on Android 12 but I keep them, learn more here -> https://github.com/VincentMasselis/RxBluetoothKotlin/releases/tag/3.2.1 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- BLUETOOTH and BLUETOOTH_ADMIN are deprecated starting API 31, theses are not required when running on Android 12 -->
+    <!-- BLUETOOTH and BLUETOOTH_ADMIN are not required by the system starting API 31 -->
     <uses-permission
         android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
-    <!-- new Bluetooth permissions -->
+    <!-- New Bluetooth permissions used by the API 31 -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
