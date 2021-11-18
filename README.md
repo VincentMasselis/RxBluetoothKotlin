@@ -76,6 +76,8 @@ rxBluetoothGatt.disconnect().subscribe()
 * A turned on bluetooth chip `(context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter.isEnabled`
 * You can add to your manifest `<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />`
 
+RxBluetoothKotlin declare the `BLUETOOTH_SCAN` permission into the AndroidManifest with the property `usesPermissionFlags="neverForLocation"`. If you want to remove the `usesPermissionFlags` property, you have to add `tools:remove="usesPermissionFlags"` to your `uses-permission` node into your own AndroidManifest, if you want to update `usesPermissionFlags` by setting an other value you have to use `tools:replace="usesPermissionFlags"` instead.
+
 ## Logging
 When scanning with `rxScan()` or connecting with `connectRxGatt()`, you can set the `logger` parameter. By setting it, RxBluetoothKotlin will produce a log for every bluetooth input, output, starting scan, error thrown, etc.. I recommend to set it for debugging purposes and/or if you're not familiar with the Android BLE API. It could helps you a lot to understand what's going on between your app and the Bluetooth Low Energy device.
 
