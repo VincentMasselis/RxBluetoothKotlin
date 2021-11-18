@@ -55,7 +55,7 @@ dokkaHtml.configure {
 
 ext {
     PUBLISH_GROUP_ID = 'com.masselis.rxbluetoothkotlin'
-    PUBLISH_VERSION = '3.2.0'
+    PUBLISH_VERSION = '3.2.1'
     PUBLISH_ARTIFACT_ID = 'rxbluetoothkotlin-core'
 }
 
